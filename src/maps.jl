@@ -1,0 +1,48 @@
+"""
+    load_state_fips(;
+            path = joinpath(@__DIR__, "maps", "state_fips.csv"),
+            cols_to_keep = [:fips, :state]
+        )
+
+Load a CSV file containing state FIPS codes and state names. The default path is
+set to `maps/state_fips.csv` relative to this file's directory. You can specify
+which columns to keep using the `cols_to_keep` argument.
+
+Returns a DataFrame with the specified columns as Strings.
+
+## Optional Arguments
+
+- `path::String`: Path to the state FIPS CSV file.
+- `cols_to_keep::Vector{Symbol}`: Columns to keep from the CSV file. Default is `[:fips, :state]`.
+
+It is recommended to keep the columns `:fips` and `:state` for proper mapping.
+"""
+function load_state_fips(;
+        path = joinpath(@__DIR__, "maps", "state_fips.csv"),
+        cols_to_keep = [:fips, :state]
+    )
+
+    state_fips = CSV.read(
+        path, 
+        DataFrame,
+        select = cols_to_keep
+    )
+
+    return state_fips
+
+end
+
+
+function load_cps_income_categories(;
+        path = joinpath(@__DIR__, "maps", "cps_income_categories.csv"),
+        cols_to_keep = [:windc, :source]
+    )
+
+    income_categories = CSV.read(
+        path,
+        DataFrame,
+        select = cols_to_keep
+    )
+
+    return income_categories
+end
