@@ -19,3 +19,97 @@ struct HouseholdTable <: AbstractHouseholdTable
     sets::DataFrame
     elements::DataFrame
 end
+
+
+
+
+struct RawHouseholdData
+    state_fips::DataFrame
+    income_categories::DataFrame
+    state_abbreviations::DataFrame
+    income::DataFrame
+    numhh::DataFrame
+    nipa::DataFrame
+    acs_commute::DataFrame
+    medicare::DataFrame
+    labor_tax_rates::DataFrame
+    capital_tax_rates::DataFrame
+
+    nipa_cps::DataFrame
+    windc_vs_nipa_income_categories::DataFrame
+    nipa_fringe::DataFrame
+    cps_data::DataFrame
+    cex_income_elasticities::DataFrame
+    pce_shares::DataFrame
+
+    function RawHouseholdData(
+        state_table::WiNDCRegional.State,
+        cps::Dict{Symbol,DataFrame},
+        nipa::DataFrame,
+        acs::DataFrame,
+        medicare::DataFrame,
+        labor_tax_rates::DataFrame,
+        cex_income_elasticities::DataFrame,
+        pce_shares::DataFrame,
+        capital_tax_rates::DataFrame;
+        state_fips = WiNDCHousehold.load_state_fips(),
+        income_categories = WiNDCHousehold.load_cps_income_categories(),
+        state_abbreviations = WiNDCHousehold.load_state_fips(cols_to_keep = [:state, :abbreviation]),
+    )
+        nipa_cps = WiNDCHousehold.cps_vs_nipa_income_categories(cps[:income], nipa)
+        windc_vs_nipa_income_categories = WiNDCHousehold.windc_vs_nipa_income_categories(state_table, nipa)
+        nipa_fringe = WiNDCHousehold.nipa_fringe_benefit_markup(nipa)
+
+        cps_data = cps[:income] |>
+            x -> innerjoin(x, income_categories, on = :source) |>
+            x -> groupby(x, [:hh, :year, :state, :windc]) |>
+            x -> combine(x, :value => sum => :value) |>
+            x -> unstack(x, :windc, :value) |>
+            x -> transform(x,
+                :save => ByRow(y -> -y) => :save
+            ) |>
+            x -> stack(x, Not([:hh, :year, :state]), variable_name = :windc, value_name = :value)
+
+
+        taxes = outerjoin(
+                cps_data |>
+                    x -> subset(x, :windc => ByRow(==("wages"))),
+                labor_tax_rates |>
+                    x -> subset(x,
+                        :variable => ByRow(y -> y∈(["tl_avg", "tfica"]))
+                    ) |>
+                    x -> groupby(x, [:hh, :state]) |>
+                    x -> combine(x, :labor_tax_rate => sum => :labor_tax_rate),
+                on = [:hh, :state],
+            ) |>
+            x -> transform(x,
+                [:value, :labor_tax_rate] => ByRow((v, l) -> -v * l) => :value,
+                :windc => ByRow(y -> "labor_tax") => :windc
+            ) |>
+            x -> select(x, :hh, :year, :state, :windc, :value)
+
+        cps_data = vcat(cps_data, taxes)
+
+
+
+        return new(
+            state_fips,
+            income_categories,
+            state_abbreviations,
+            cps[:income],
+            cps[:numhh],
+            nipa,
+            acs,
+            medicare,
+            labor_tax_rates,
+            capital_tax_rates,
+            nipa_cps,
+            windc_vs_nipa_income_categories,
+            nipa_fringe,
+            cps_data,
+            cex_income_elasticities,
+            pce_shares
+        )
+
+    end
+end

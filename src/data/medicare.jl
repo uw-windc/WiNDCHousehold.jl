@@ -161,6 +161,10 @@ Load ACS Medicare data from the Census API for the specified years.
     The year 2020 is excluded from the default years because the ACS data for that year
     does not include Medicare data due to low response rates. 
 
+!!! note "Early years?"
+    Currently we don't have data before 2009, so requesting years before. We should
+    update this to just use 2009 data for earlier years.
+
 ## Return
 
 Returns a DataFrame with shares of income groups for Medicare enrollment by state 
@@ -174,11 +178,11 @@ function load_acs_medicare_data(
     acs_medicare = DataFrame()
 
     vars = Dict(
-        "B27015_005E" => Symbol("<25k"),
-        "B27015_010E" => Symbol("25-50k"),
-        "B27015_015E" => Symbol("50-75k"),
-        "B27015_020E" => Symbol( "75-100k"),
-        "B27015_025E" => Symbol( ">100k"),
+        "B27015_005E" => :hh1,#Symbol("<25k"),
+        "B27015_010E" => :hh2,#Symbol("25-50k"),
+        "B27015_015E" => :hh3,#Symbol("50-75k"),
+        "B27015_020E" => :hh4,#Symbol( "75-100k"),
+        "B27015_025E" => :hh5,#Symbol( ">100k"),
     )
 
     for year in union(filter(y -> y != 2020, years))

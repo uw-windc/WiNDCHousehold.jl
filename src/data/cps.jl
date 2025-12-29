@@ -61,7 +61,6 @@ Clean and process the CPS data for a given year.
 Returns a NamedTuple with the following DataFrames:
 
 - `income::DataFrame`: Income data by household type and state.
-- `shares::DataFrame`: Income shares by household type and state.
 - `count::DataFrame`: Count of households by household type and state.
 - `numhh::DataFrame`: Number of households by household type and state.
 """
@@ -101,14 +100,6 @@ function clean_cps_data_year(year, cps_rw, variables, api_key; state_fips = load
         x -> combine(x, :hh => length => :n) |>
         x -> vcat(x,national_count)
 
-    # Incomes by income breakdown and stat
-    national_income = df |>
-        x -> groupby(x, :hh) |>
-        x -> combine(x, modify_vars .=> sum .=> modify_vars) |>
-        x -> transform(x, 
-            :hh => (y -> "US") => :state
-        )
-
     income = df |>
         x -> groupby(x, [:hh,:state]) |>
         x -> combine(x, modify_vars .=> (y -> (sum(y)/1e9)) .=> modify_vars) |>
@@ -116,22 +107,13 @@ function clean_cps_data_year(year, cps_rw, variables, api_key; state_fips = load
         x -> stack(x, Not(:hh,:state), variable_name = :source, value_name = :value);
 
 
-    shares = income |>
-        x -> groupby(x, [:state,:source]) |>
-        x -> combine(x, :value .=> sum) |>
-        x -> leftjoin(income,x, on = [:state,:source]) |>
-        x -> transform(x,
-            [:value,:value_sum] => ((a,b) -> a./b) => :value
-        ) |>
-        x -> select(x,Not(:value_sum));
-
     numhh = df |>
         x -> select(x, [:hh,:state,:marsupwt]) |>
         x -> groupby(x, [:state,:hh]) |>
         x -> combine(x, :marsupwt => (y -> sum(y)*1e-6) => :numhh)
 
 
-    return (income=income,shares=shares,count=regional_count,numhh=numhh)
+    return (income=income, count=regional_count, numhh=numhh)
 
 end
 

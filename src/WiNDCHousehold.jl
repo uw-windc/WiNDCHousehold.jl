@@ -8,10 +8,16 @@ module WiNDCHousehold
 
     import WiNDCContainer: domain, base_table, sets, elements
 
+    using JuMP, Ipopt, JLD2
+
+    
+
     include("structs.jl")
     export HouseholdTable
 
     include("maps.jl")
+
+    include("data/magic_numbers.jl")
 
     include("data/cps.jl")
     export load_cps_data_api
@@ -23,6 +29,15 @@ module WiNDCHousehold
     export load_acs_data_api
 
     include("data/medicare.jl")
+
+    include("data/tax_rates.jl")
+
+    include("data/cex_files.jl")
+
+    include("data/calibration_model_1.jl")
+    include("data/calibration_model_2.jl")
+
+    include("data/load_raw_data.jl")
 
     include("build.jl")
 

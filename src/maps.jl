@@ -46,3 +46,19 @@ function load_cps_income_categories(;
 
     return income_categories
 end
+
+
+function load_windc_naics_map(;
+        path = joinpath(@__DIR__, "maps", "naics_windc_map.csv"),
+        #cols_to_keep = [:windc, :naics]
+    )
+
+    windc_naics_map = CSV.read(
+        path,
+        DataFrame,
+        #select = cols_to_keep
+    ) |>
+    x -> select(x, :bea_code => :naics,  :windc_label => :windc)
+    
+    return windc_naics_map
+end
