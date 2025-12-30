@@ -10,12 +10,12 @@ function household_model(
     labor_demand = elements(HH, :labor_demand) |> x -> x[!, :name]
     capital_demand = elements(HH, :capital_demand) |> x -> x[!, :name]
     imports = elements(HH, :import) |> x -> x[!, :name]
-    transfers = elements(HH, :transfer) |> x -> x[!, :name]
+    transfers = elements(HH, :transfer_payment) |> x -> x[!, :name]
     personal_consumption = elements(HH, :personal_consumption) |> x -> x[!, :name]
     households = elements(HH, :household) |> x -> x[!, :name]
     capital_demand = elements(HH, :capital_demand) |> x -> x[!, :name]
 
-
+    
         
     M = MPSGEModel()
 
@@ -40,9 +40,9 @@ function household_model(
         OTR[r=states, s=sectors], Q[:otr, s, r, :output_tax_rate], (description = "Output tax rate",)
         TR[r=states, g=commodities], Q[g, :tr, r, :tax_rate], (description = "Tax rate",)
         DR[r=states, g=commodities], Q[g, :dr, r, :duty_rate], (description = "Duty rate",)
-        TK[r=states, s=sectors], Q[:tk, s, r, :capital_tax_rate], (description = "Capital tax rate",)
+        TK[r=states, s=sectors], Q[:ktr, s, r, :capital_tax_rate], (description = "Capital tax rate",)
         FICA[r=states, h=households], Q[:ftr, h, r, :fica_tax_rate], (description = "FICA tax rate",)
-        LTR[r=states, h=households], Q[:ltr, h, r, :labor_tax_rate], (description = "Labor tax rate",)
+        LTR[r=states, h=households], Q[:ltr, h, r, :marginal_labor_tax_rate], (description = "Labor tax rate",)
     end)
 
 
@@ -94,7 +94,7 @@ function household_model(
         @output(PY[r,g=commodities], Q[g, s, r, :intermediate_supply],                     t, taxes = [Tax(GOVT, M[:OTR][r,s])], reference_price = 1-Q[:otr, s, r, :output_tax_rate])
         @input(PA[r, g=commodities], Q[g, s, r, :intermediate_demand],                     s)
         @input(PL[r],            sum(Q[l, s, r, :labor_demand] for l in labor_demand),     va)
-        @input(RK[r, s],         sum(Q[k, s, r, :capital_demand] for k in capital_demand), va, taxes = [Tax(GOVT, M[:TK][r,s])], reference_price = 1 - Q[:tk, s, r, :capital_tax_rate])
+        @input(RK[r, s],         sum(Q[k, s, r, :capital_demand] for k in capital_demand), va, taxes = [Tax(GOVT, M[:TK][r,s])], reference_price = 1 + Q[:ktr, s, r, :capital_tax_rate])
     end)
 
         
@@ -131,7 +131,7 @@ function household_model(
 
     leisure_data(HH; output = :DefaultDict) |> Q->
     @production(M, LS[r=states, h=households], [t=0, s=1], begin
-        @output(PL[q=states], Q[q, h, r, :labor_endowment], t, taxes = [Tax(GOVT, M[:LTR][r,h] + M[:FICA][r,h])], reference_price = 1 - Q[:ltr, h, r, :labor_tax_rate] - Q[:ftr, h, r, :fica_tax_rate])
+        @output(PL[q=states], Q[q, h, r, :labor_endowment], t, taxes = [Tax(GOVT, M[:LTR][r,h] + M[:FICA][r,h])], reference_price = 1 - Q[:ltr, h, r, :marginal_labor_tax_rate] - Q[:ftr, h, r, :fica_tax_rate])
         @input(PLS[r, h],   Q[:ls, h, r, :labor_supply], s)
     end)
 

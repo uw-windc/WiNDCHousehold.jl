@@ -802,7 +802,7 @@ function leisure_consumption_elasticity(
         on = [:col, :region, :year],
     ) |>
     x -> transform(x,
-        [:pce, :ld, :ls] => ByRow((p, l, s) -> leisure_income_elasticity * (p*l)/p * s/l) => output,
+        [:pce, :ld, :ls] => ByRow((p, l, s) -> leisure_income_elasticity * (p+l)/p * s/l) => output,
         :col => ByRow(y -> (:els, parameter)) => [:row, :parameter]
     ) |>
     x -> select(x, :row, :col, :region, :year, :parameter, output) 
