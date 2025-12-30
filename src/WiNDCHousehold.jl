@@ -39,9 +39,14 @@ module WiNDCHousehold
 
     include("data/load_raw_data.jl")
 
+
+    include("aggregate_parameters.jl")
+    export leisure_supply
+
     include("build.jl")
 
-    
+    include("model.jl")
+    export household_model
 
 
 

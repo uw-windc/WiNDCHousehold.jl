@@ -178,6 +178,7 @@ function build_household_table(
     HH = WiNDCHousehold.create_household_interest(HH, state_table, raw_data, M1)
     HH = WiNDCHousehold.update_household_transfers(HH, state_table, raw_data, M1)
     HH = WiNDCHousehold.create_taxes(HH, state_table, raw_data)
+    HH = WiNDCHousehold.create_savings(HH, state_table, raw_data, M1)
 
     return HH
 
@@ -1349,4 +1350,44 @@ function create_taxes(
 
     return HH
 
+end
+
+
+function create_savings(
+        HH::HouseholdTable,
+        state_table::WiNDCRegional.State,
+        raw_data::RawHouseholdData,
+        M1::JuMP.Model
+    )
+
+    regions = elements(HH, :state) |> x -> x[:, :name]
+    households = elements(HH, :household) |> x -> x[:, :name]
+
+    savings = DataFrame(vec([
+        (region = r, col = h, row = :savings, year = 2024, parameter = :savings, value = value(M1[:Savings][r, h]))
+        for r in regions, h in households if value(M1[:Savings][r, h]) != 0
+    ]))
+
+    df = table(HH) |>
+        x -> vcat(x, savings)
+
+    S = sets(HH) |>
+        x -> vcat(x,
+            DataFrame([
+                (name = :Savings, description = "Savings", domain = :parameter),
+                (name = :savings, description = "Savings", domain = :row),
+            ])
+        )
+
+    E = elements(HH) |>
+        x -> vcat(x,
+            DataFrame(vec([
+                (name = :savings, set = :Savings, description = "Savings"),
+                (name = :savings, set = :savings, description = "Savings"),
+            ]))
+        )
+
+    HH = HouseholdTable(df, S, E; regularity_check = true)
+
+    return HH
 end
