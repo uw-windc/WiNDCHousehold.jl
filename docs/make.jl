@@ -1,6 +1,5 @@
 using WiNDCHousehold
 using Documenter
-using Literate
 
 DocMeta.setdocmeta!(WiNDCHousehold, :DocTestSetup, :(using WiNDCHousehold); recursive=true)
 
@@ -25,22 +24,22 @@ const _PAGES = [
 ]
 
 
-literate_files = Dict(
-    #"basic_rc" => ( 
-    #    input = "src/Tutorials/robinson_crusoe/basic_rc.jl",
-    #    output = "src/Tutorials/robinson_crusoe/"
-    #),
-
-)
-
-
-for (name, paths) in literate_files
-    EXAMPLE = joinpath(@__DIR__, paths.input)
-    OUTPUT = joinpath(@__DIR__, paths.output)
-    Literate.markdown(EXAMPLE, 
-                      OUTPUT;
-                      name = name)
-end
+#literate_files = Dict(
+#    #"basic_rc" => ( 
+#    #    input = "src/Tutorials/robinson_crusoe/basic_rc.jl",
+#    #    output = "src/Tutorials/robinson_crusoe/"
+#    #),
+#
+#)
+#
+#
+#for (name, paths) in literate_files
+#    EXAMPLE = joinpath(@__DIR__, paths.input)
+#    OUTPUT = joinpath(@__DIR__, paths.output)
+#    Literate.markdown(EXAMPLE, 
+#                      OUTPUT;
+#                      name = name)
+#end
 
 
 
