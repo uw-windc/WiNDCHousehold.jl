@@ -1,5 +1,7 @@
 # WiNDC Household Disaggregation
 
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://uw-windc.github.io/WiNDCHousehold.jl/dev/)
+
 This package contains functions and data structures to disaggregate household-level data for the WiNDC model.
 
 ## Basic Example
