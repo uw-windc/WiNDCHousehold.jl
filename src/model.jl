@@ -269,10 +269,10 @@ Extracts disposition-related parameters from the regional data table.
 
 ## Aggregate Data
 
-- [`WiNDCRegional.regional_local_supply`](@ref)
-- [`WiNDCRegional.netports`](@ref)
-- [`WiNDCRegional.total_supply`](@ref)
-- [`WiNDCRegional.regional_national_supply`](@ref)
+- [`WiNDCHousehold.regional_local_supply`](@ref)
+- [`WiNDCHousehold.netports`](@ref)
+- [`WiNDCHousehold.total_supply`](@ref)
+- [`WiNDCHousehold.regional_national_supply`](@ref)
 """
 function disposition_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
@@ -311,9 +311,9 @@ Extracts Armington-related parameters from the regional data table.
 
 ## Aggregate data
 
-- [`WiNDCRegional.absorption`](@ref)
-- [`WiNDCRegional.tax_rate`](@ref)
-- [`WiNDCRegional.duty_rate`](@ref)
+- [`WiNDCHousehold.absorption`](@ref)
+- [`WiNDCHousehold.tax_rate`](@ref)
+- [`WiNDCHousehold.duty_rate`](@ref)
 """
 function armington_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
