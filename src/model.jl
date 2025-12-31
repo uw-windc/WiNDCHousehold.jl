@@ -123,9 +123,9 @@ end)
 
 ### MS - Margin Supply and Demand in Each State
 
-[`WiNDCHousehold.margin_supply_demand`](@ref)
+[`WiNDCHousehold.margin_supply_data`](@ref)
 ```julia
-margin_supply_demand(HH; output = :DefaultDict) |> Q->
+margin_supply_data(HH; output = :DefaultDict) |> Q->
 @production(M, MS[r=states, m=margins], [t=0, s=0], begin
     @output(PM[r, m],        sum(Q[g, m, r, :margin_demand] for g in commodities), t)
     @input(PN[g=commodities],    Q[g, m, r, :national_margin_supply],              s)
@@ -365,7 +365,7 @@ function household_model(
         @input(PM[r, m=margins], Q[g, m, r, :margin_demand],                  s)
     end)
 
-    margin_supply_demand(HH; output = :DefaultDict) |> Q->
+    margin_supply_data(HH; output = :DefaultDict) |> Q->
     @production(M, MS[r=states, m=margins], [t=0, s=0], begin
         @output(PM[r, m],        sum(Q[g, m, r, :margin_demand] for g in commodities), t)
         @input(PN[g=commodities],    Q[g, m, r, :national_margin_supply],              s)
@@ -693,7 +693,7 @@ function armington_data(data::T; output = :DataFrame) where T<:AbstractHousehold
 end
 
 """
-    margin_supply_demand(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
+    margin_supply_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
 
 Extracts margin supply and demand parameters from the regional data table.
 
@@ -715,7 +715,7 @@ Extracts margin supply and demand parameters from the regional data table.
     table(data, :Margin_Demand, :Margin_Supply; normalize = :Use)
 ```
 """
-function margin_supply_demand(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
+function margin_supply_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
     df = table(data, :Margin_Demand, :Margin_Supply; normalize = :Use)
 
