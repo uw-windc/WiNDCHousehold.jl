@@ -8,17 +8,53 @@ function load_household_yaml()
     return load_household_yaml("household.yaml")
 end
 
-function load_household_raw_data()
+function household_raw_data()
     info = load_household_yaml()
     return household_raw_data(info)
 end
 
-function load_household_raw_data(path::String)
+function household_raw_data(path::String)
     info = load_household_yaml(path)
     return household_raw_data(info)
 end
 
+"""
+    household_raw_data()
+    household_raw_data(path::String)
+    household_raw_data(info::Dict)
 
+Load the raw household data based on the provided configuration dictionary.
+
+## Arguments
+
+If no arguments are provided, the function loads the configuration from `household.yaml` 
+in the current directory. If a `path::String` is provided, it loads the configuration from the specified path.
+If a `info::Dict` is provided, it uses the given configuration dictionary directly.
+
+## Returns
+
+This currently returns a tuple containing:
+
+- A `State` table object
+- A [`WiNDCHousehold.RawHouseholdData`](@ref) object containing all the raw household data.
+
+## Raw Data Loaded
+
+- [`WiNDCHousehold.load_cps_data_api`](@ref)
+- [`WiNDCHousehold.load_nipa_data_api`](@ref)
+- [`WiNDCHousehold.load_acs_data_api`](@ref)
+- [`WiNDCHousehold.load_medicare_data_api`](@ref)
+- [`WiNDCHousehold.load_labor_tax_rates`](@ref)
+- [`WiNDCHousehold.load_capital_tax_rates`](@ref)
+- [`WiNDCHousehold.load_cex_income_elasticities`](@ref)
+- [`WiNDCHousehold.load_pce_shares`](@ref)
+
+## Maps Loaded
+
+- [`WiNDCHousehold.load_state_fips`](@ref)
+- [`WiNDCHousehold.load_cps_income_categories`](@ref)
+
+"""
 function household_raw_data(info::Dict)
 
     bea_api_key = info["metadata"]["bea_api_key"]

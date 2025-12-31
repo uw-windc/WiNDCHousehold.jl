@@ -12,7 +12,7 @@ const _PAGES = [
     ],
     "Data" => [
     #    "data/maps.md",
-    #    "data/input_data.md",
+        "data/input_data.md",
     #    "data/disaggregation.md",
     #    "data/calibration.md",
         "data/sets.md",

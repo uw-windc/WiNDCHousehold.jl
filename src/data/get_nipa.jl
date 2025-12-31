@@ -1,14 +1,27 @@
 """
     load_nipa_data_api(years::Vector{Int}, bea_api_key)
 
-Pull the raw data directly from the API
-
-Return a DataFrame with the NIPA data for the specified years.
+Pull the raw data directly from the BEA API
 
 ## Arguments
 
 - `years::Vector{Int}`: The years of the NIPA data to load.
 - `bea_api_key::String`: The BEA API key.
+
+## Returns
+
+A DataFrame with the NIPA data for the specified years.
+
+## Query 
+
+| Variable | Value |
+|----------|-------|
+| Method   | GetData |
+| datasetname | NIPA |
+| TableName | T20100 |
+| Frequency | A |
+| Year      | Comma-separated list of years |
+| ResultFormat | json |
 """
 function load_nipa_data_api(years::Vector{Int}, bea_api_key)
 

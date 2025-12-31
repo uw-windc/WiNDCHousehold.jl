@@ -8,6 +8,19 @@ Load labor tax rates from a CSV file located at `path`. The CSV is expected to
 contain state-level labor tax rate information, which will be matched with state 
 abbreviations provided by `state_abbreviations`.
 
+## Arguments
+
+- `path::String`: The path to the CSV file.
+
+## Optional Arguments
+
+- `state_abbreviations::DataFrame`: A DataFrame containing state abbreviations 
+    and their corresponding state names. Default loads state FIPS with state 
+    names and abbreviations.
+
+## Returns
+
+A DataFrame containing labor tax rates by household and state.
 
 """
 function load_labor_tax_rates(
@@ -34,6 +47,20 @@ end
 Load capital tax rates from a CSV file located at `path`. The CSV is expected to
 contain state-level capital tax rate information, which will be matched with state
 abbreviations provided by `state_abbreviations`.
+
+## Arguments
+
+- `path::String`: The path to the CSV file.
+
+## Optional Arguments
+
+- `state_abbreviations::DataFrame`: A DataFrame containing state abbreviations 
+    and their corresponding state names. Default loads state FIPS with state 
+    names and abbreviations.
+
+## Returns
+
+A DataFrame containing capital tax rates by state.
 """
 function load_capital_tax_rates(
         path::String;
