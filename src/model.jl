@@ -457,6 +457,20 @@ end
 
 Returns initial parameter data for the household model.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
 vcat(
     output_tax_rate(data),
@@ -467,6 +481,15 @@ vcat(
     marginal_labor_tax_rate(data)
     )
 ```
+
+## Aggregate Data
+
+- [`WiNDCHousehold.output_tax_rate`](@ref)
+- [`WiNDCHousehold.tax_rate`](@ref)
+- [`WiNDCHousehold.duty_rate`](@ref)
+- [`WiNDCHousehold.capital_tax_rate`](@ref)
+- [`WiNDCHousehold.fica_tax_rate`](@ref)
+- [`WiNDCHousehold.marginal_labor_tax_rate`](@ref)
 """
 function parameter_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
@@ -496,8 +519,21 @@ end
 
 Extracts sectoral output-related parameters from the regional data table.
 
-```julia
+## Arguments
 
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the sectoral output data.
+
+## Data
+
+```julia
 vcat(
     table(data, 
         :Intermediate_Supply, 
@@ -510,6 +546,12 @@ vcat(
     capital_tax_rate(data)
     )
 ```
+
+## Aggregate Data
+
+- [`WiNDCHousehold.output_tax_rate`](@ref)
+- [`WiNDCHousehold.capital_tax_rate`](@ref)
+
 """
 function sectoral_output(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
@@ -543,6 +585,20 @@ end
     disposition_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
 
 Extracts disposition-related parameters from the regional data table.
+
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
 
 ```julia
     vcat(
@@ -586,6 +642,20 @@ end
 
 Extracts Armington-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     vcat(
         absorption(data; normalize = true),
@@ -627,6 +697,20 @@ end
 
 Extracts margin supply and demand parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     table(data, :Margin_Demand, :Margin_Supply; normalize = :Use)
 ```
@@ -651,6 +735,20 @@ end
     consumption_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
 
 Extracts consumption-related parameters from the regional data table.
+
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
 
 ```julia
     table(data, :Personal_Consumption; normalize = :Use)
@@ -677,6 +775,20 @@ end
 
 Extracts leisure-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
    vcat(
         table(data, :Labor_Endowment),
@@ -685,6 +797,12 @@ Extracts leisure-related parameters from the regional data table.
         WiNDCHousehold.fica_tax_rate(data)
     )
 ```
+
+## Aggregate Data
+
+- [`WiNDCHousehold.labor_supply`](@ref)
+- [`WiNDCHousehold.marginal_labor_tax_rate`](@ref)
+- [`WiNDCHousehold.fica_tax_rate`](@ref)
 """
 function labor_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
@@ -713,6 +831,20 @@ end
 
 Extracts capital stock-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     table(data, :Capital_Demand; normalize = :Use)
 ```
@@ -738,6 +870,20 @@ end
 
 Extracts representative agent-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     vcat(
         leisure_consumption_elasticity(data),
@@ -754,6 +900,13 @@ Extracts representative agent-related parameters from the regional data table.
         )
     )
 ```
+
+## Aggregate Data
+
+- [`WiNDCHousehold.leisure_consumption_elasticity`](@ref)
+- [`WiNDCHousehold.average_labor_tax_rate`](@ref)
+- [`WiNDCHousehold.labor_supply`](@ref)
+- [`WiNDCHousehold.leisure_demand`](@ref)
 """
 function representative_agent_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
     df = vcat(
@@ -790,6 +943,20 @@ end
 
 Extracts NYSE-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     table(data, 
         :Household_Supply,
@@ -820,6 +987,20 @@ end
     invest_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
 
 Extracts investment-related parameters from the regional data table.
+
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
 
 ```julia
     table(data, 
@@ -852,6 +1033,20 @@ end
 
 Extracts government-related parameters from the regional data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     vcat(
         table(data, 
@@ -864,6 +1059,11 @@ Extracts government-related parameters from the regional data table.
         WiNDCHousehold.average_labor_tax_rate(data),
     )
 ```
+
+## Aggregate Data
+
+- [`WiNDCHousehold.government_deficit`](@ref)
+- [`WiNDCHousehold.average_labor_tax_rate`](@ref)
 """
 function government_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
     df = vcat(
@@ -894,6 +1094,20 @@ end
 
 Extracts steady-state capital stock-related parameters from the household data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     table(HH, :Investment_Final_Demand; normalize=:Use)
 ```
@@ -916,6 +1130,20 @@ end
     saverate_data(HH::HouseholdTable; output = :DataFrame)
 
 Extracts saving rate-related parameters from the household data table.
+
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
 
 ```julia
     table(HH, :Investment_Final_Demand; normalize=:Use)
@@ -940,6 +1168,20 @@ end
 
 Extracts transfer-related parameters from the household data table.
 
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
+
 ```julia
     table(HH, :Government_Final_Demand; normalize=:Use)
 ```
@@ -962,6 +1204,20 @@ end
     cpi_data(HH::HouseholdTable; output = :DataFrame)
 
 Extracts consumer price index-related parameters from the household data table.
+
+## Arguments
+
+- `data::T`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `output::Symbol = :DataFrame`: The output format, either `:DataFrame` or `:DefaultDict`.
+
+## Returns
+
+- A DataFrame or DefaultDict containing the parameter data.
+
+## Data
 
 ```julia
     table(HH, :Personal_Consumption; normalize=:Use) |>
