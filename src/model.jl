@@ -1,3 +1,268 @@
+"""
+    household_model(
+        HH::HouseholdTable;
+        etaK::Real = 4.0,
+        )
+
+Constructs a WiNDCHousehold MPSGE model from a WiNDCHousehold data table.
+
+## Arguments
+
+- `HH::HouseholdTable`: A WiNDCHousehold data table.
+
+## Keyword Arguments
+
+- `etaK::Real = 4.0`: Capital transformation elasticity
+
+## Returns
+
+- `M::MPSGEModel`: An MPSGE model representing the household sector.
+
+## Parameters
+
+The initial values of the parameters are given by [`parameter_data`](@ref). The 
+parameters included in the model are:
+
+- `OTR[r=states, s=sectors]`:  Output tax rate
+- `TR[r=states, g=commodities]`: Tax rate
+- `DR[r=states, g=commodities]`: Duty rate
+- `TK[r=states, s=sectors]`:  Capital tax rate
+- `FICA[r=states, h=households]`:  FICA tax rate
+- `LTR[r=states, h=households]`:  Labor tax rate
+
+If the model is denoted `M`, these parameters can be accessed as `M[:OTR]`, 
+`M[:TR]`, etc. 
+
+
+## Variables
+
+### Sectors
+
+- `Y[r=states, s=sectors]`:" Production
+- `X[r=states, g=commodities]`:" Disposition
+- `A[r=states, g=commodities]`:" Absorption
+- `C[r=states, h=households]`:" Household Consumption
+- `MS[r=states, m=margins]`:" Margin supply
+- `LS[r=states, h=households]`:" Labor supply
+- `KS`: Aggregate Capital stock
+
+### Commodities
+
+- `PA[r=states, g=commodities]`:" Regional market (input)
+- `PC[r=states, h=households]`:" Consumer price index
+- `PD[r=states, g=commodities]`:" Local market price
+- `PFX`: Foreign exchange
+- `PK`: Aggregate return to capital
+- `PL[r=states]`:" Wage rate
+- `PLS[r=states, h=households]`:" Leisure price
+- `PM[r=states, m=margins]`:" Margin price
+- `PN[g=commodities]`:" National market
+- `PY[r=states, g=commodities]`:" Regional market (output)
+- `RK[r=states, s=sectors]`:" Sectoral rental rate
+- `RKS`: Capital stock
+
+### Consumers
+
+- `RA[r=states, h=households]`: Representative agent
+- `NYSE`: Aggregate capital owner
+- `INVEST`: Aggregate investor
+- `GOVT`: Aggregate government
+
+### Auxiliaries
+
+All auxiliaries start with a value of 1. 
+
+- `SAVERATE`: Domestic saving rate
+- `TRANS`: Budget balance rationing variable
+- `SSK`: Steady-state capital stock
+- `CPI`: Consumer price index
+
+
+## Production Blocks
+
+### Y - Sectoral Production in Each State
+
+[`sectoral_production`](@ref)
+```julia
+sectoral_output(HH; output = :DefaultDict) |> Q->
+@production(M, Y[r=states, s=sectors], [t=0, s=0, va=>s=1], begin
+    @output(PY[r,g=commodities], Q[g, s, r, :intermediate_supply],                     t,  taxes = [Tax(GOVT, M[:OTR][r,s])], reference_price = 1-Q[:otr, s, r, :output_tax_rate])
+    @input(PA[r, g=commodities], Q[g, s, r, :intermediate_demand],                     s)
+    @input(PL[r],            sum(Q[l, s, r, :labor_demand] for l in labor_demand),     va)
+    @input(RK[r, s],         sum(Q[k, s, r, :capital_demand] for k in capital_demand), va, taxes = [Tax(GOVT, M[:TK][r,s])], reference_price = 1 + Q[:ktr, s, r, :capital_tax_rate])
+end)
+```
+
+### X - Commodity Disposition in Each State
+
+[`disposition_data`](@ref)
+```julia
+disposition_data(HH; output = :DefaultDict) |> Q->
+@production(M, X[r=states, g=commodities], [s=0, t=4], begin
+    @output(PFX,      Q[g, r, :netport],                t)
+    @output(PN[g],    Q[g, r, :region_national_supply], t)
+    @output(PD[r, g], Q[g, r, :region_local_supply],    t)
+    @input(PY[r, g],  Q[g, r, :total_supply],           s)
+end)
+```
+
+### A - Armington Commodity Absorption in Each State
+
+[`armington_data`](@ref)
+```julia
+armington_data(HH; output = :DefaultDict) |> Q-> 
+@production(M, A[r=states, g=commodities], [t=0, s=0, dm => s = 2, d=>dm=4], begin
+    @output(PA[r, g],        Q[g, :abs, r, :absorption],                  t, taxes = [Tax(GOVT, M[:TR][r,g])], reference_price = 1 - Q[g, :tr, r, :tax_rate])
+    @output(PFX,             Q[g, :reexport, r, :reexport],               t)
+    @input(PN[g],            Q[g, :national_demand, r, :national_demand], d)
+    @input(PD[r, g],         Q[g, :local_demand, r, :local_demand],       d)
+    @input(PFX,          sum(Q[g, i, r, :import] for i in imports),       dm, taxes = [Tax(GOVT, M[:DR][r,g])], reference_price = 1 + Q[g, :dr, r, :duty_rate])
+    @input(PM[r, m=margins], Q[g, m, r, :margin_demand],                  s)
+end)
+```
+
+### MS - Margin Supply and Demand in Each State
+
+[`margin_supply_demand`](@ref)
+```julia
+margin_supply_demand(HH; output = :DefaultDict) |> Q->
+@production(M, MS[r=states, m=margins], [t=0, s=0], begin
+    @output(PM[r, m],        sum(Q[g, m, r, :margin_demand] for g in commodities), t)
+    @input(PN[g=commodities],    Q[g, m, r, :national_margin_supply],              s)
+    @input(PD[r, g=commodities], Q[g, m, r, :local_margin_supply],                 s)
+end)
+```
+
+### C - Household Consumption in Each State
+
+[`consumption_data`](@ref)
+```julia
+consumption_data(HH; output = :DefaultDict) |> Q->
+@production(M, C[r=states, h=households], [t=0, s=1], begin
+    @output(PC[r, h],        sum(Q[g, h, r, :personal_consumption] for g in commodities), t)
+    @input(PA[r, g=commodities], Q[g, h, r, :personal_consumption],                       s)
+end)
+```
+
+### LS - Labor Supply in Each State
+
+[`labor_data`](@ref)
+```julia
+labor_data(HH; output = :DefaultDict) |> Q->
+@production(M, LS[r=states, h=households], [t=0, s=1], begin
+    @output(PL[q=states], Q[q, h, r, :labor_endowment], t, taxes = [Tax(GOVT, M[:LTR][r,h] + M[:FICA][r,h])], reference_price = 1 - Q[:ltr, h, r, :marginal_labor_tax_rate] - Q[:ftr, h, r, :fica_tax_rate])
+    @input(PLS[r, h],     Q[:ls, h, r, :labor_supply], s)
+end)
+```
+
+### KS - Capital Stock Transformation
+
+[`capital_stock_data`](@ref)
+```julia
+capital_stock_data(HH; output = :DefaultDict) |> Q->
+@production(M, KS, [t=etaK, s=1], begin
+    @output(RK[r=states, s=sectors], Q[s, r, :capital_demand], t)
+    @input(RKS,                  sum(Q[ss, rr, :capital_demand] for ss in sectors, rr in states), s)
+end)
+```
+
+## Demands
+
+### RA - Representative Agent Demand in Each State
+
+[`representative_agent_data`](@ref)
+```julia
+representative_agent_data(HH; output = :DefaultDict) |> Q->
+@demand(M, RA[r=states, h=households], begin
+    @final_demand(PC[r, h], sum(Q[g, h, r, :personal_consumption] for g in commodities; init=0))
+    @final_demand(PLS[r, h],    Q[:ld, h, r, :leisure_demand])
+    @endowment(PLS[r, h],       Q[:ld, h, r, :leisure_demand] + Q[:ls, h, r, :labor_supply])
+    @endowment(PFX,         sum(Q[trn, h, r, :transfer_payment] for trn in transfers; init=0))
+    @endowment(PLS[r, h],   (M[:LTR][r,h] - Q[:altr, h, r, :average_labor_tax_rate]) * sum(Q[dest, h, r, :labor_endowment] for dest in states; init=0))
+    @endowment(PK,              Q[:interest, h, r, :household_interest])
+    @endowment(PFX,            -Q[:savings, h, r, :savings]*SAVERATE)
+end, elasticity = Q[:els, h, r, :leisure_consumption_elasticity])
+```
+
+### NYSE - Aggregate Capital Owner Demand
+
+[`NYSE_data`](@ref)
+```julia
+NYSE_data(HH; output = :DefaultDict) |> Q->
+@demand(M, NYSE, begin
+    @final_demand(PK,                       sum(Q[row, col, r, :household_supply] for row in commodities, col in personal_consumption, r in states; init=0) + sum(Q[row, col, r, :capital_demand] for row in capital_demand, col in sectors, r in states; init=0))
+    @endowment(PY[r=states, g=commodities], sum(Q[g, col, r, :household_supply] for col in personal_consumption; init=0))
+    @endowment(RKS,                         sum(Q[k, s, r, :capital_demand] for k in capital_demand, s in sectors, r in states;init=0)*SSK)
+end)
+```
+
+### INVEST - Aggregate Investor Demand
+
+[`invest_data`](@ref)
+```julia
+invest_data(HH; output = :DefaultDict) |> Q->
+@demand(M, INVEST, begin
+    @final_demand(PA[r=states, g=commodities], Q[g, :invest, r, :investment_final_demand])
+    @endowment(PFX,                        sum(Q[:savings, h, r, :savings] for h in households, r in states; init=0)*SAVERATE)
+    @endowment(PFX, 0) # fsav0
+end)
+```
+
+### GOVT - Aggregate Government Demand
+
+[`government_data`](@ref)
+```julia
+government_data(HH; output = :DefaultDict) |> Q->
+@demand(M, GOVT, begin
+    @final_demand(PA[r=states, g=commodities], Q[g, :govern, r, :government_final_demand])
+    @endowment(PFX,                 -TRANS*sum(Q[trn, h, r, :transfer_payment] for trn in transfers, h in households, r in states; init=0))
+    @endowment(PFX,                            Q[:gd, :gd, :gd, :government_deficit])
+    @endowment(PLS[r=states, h=households], -(M[:LTR][r,h] - Q[:altr, h, r, :average_labor_tax_rate]) * sum(Q[dest, h, r, :labor_endowment] for dest in states; init=0))
+end)
+```
+
+## Auxiliary Constraints
+
+### SSK - Steady-State Capital Stock Constraint
+
+[`ssk_data`](@ref)
+```julia
+ssk_data(HH; output = :DefaultDict) |> Q->
+@aux_constraint(M, SSK, 
+    sum(Q[g, :invest, r, :investment_final_demand]*(PA[r,g]-RKS) for g in commodities, r in states)
+)
+```
+
+### SAVERATE - Domestic Saving Rate Constraint
+
+[`saverate_data`](@ref)
+```julia
+saverate_data(HH; output = :DefaultDict) |> Q->
+@aux_constraint(M, SAVERATE, 
+    INVEST - sum(Q[g, :invest, r, :investment_final_demand]*PA[r,g]*SSK for g in commodities, r in states)
+)
+```
+
+### TRANS - Budget Balance Rationing Variable Constraint
+
+[`trans_data`](@ref)
+```julia
+trans_data(HH; output = :DefaultDict) |> Q->
+@aux_constraint(M, TRANS,
+    GOVT - sum(PA[r,g]*Q[g, :govern, r, :government_final_demand] for g in commodities, r in states)
+)
+```
+
+### CPI - Consumer Price Index Constraint
+
+[`cpi_data`](@ref)
+```julia
+cpi_data(HH; output = :DefaultDict) |> Q->
+@aux_constraint(M, CPI,
+    CPI - sum(PC[r,h]*Q[h, r, :personal_consumption] for h in households, r in states)/ sum(Q[h, r, :personal_consumption] for h in households, r in states; init=0)
+)
+```
+"""
 function household_model(
         HH::HouseholdTable;
         etaK::Real = 4.0,
@@ -19,23 +284,7 @@ function household_model(
         
     M = MPSGEModel()
 
-    output_tax_rate = WiNDCHousehold.output_tax_rate(HH)
-    tax_rate = WiNDCHousehold.tax_rate(HH)
-    duty_rate = WiNDCHousehold.duty_rate(HH)
-    capital_tax_rate = WiNDCHousehold.capital_tax_rate(HH)
-    fica_tax_rate = WiNDCHousehold.fica_tax_rate(HH)
-    labor_tax_rate = WiNDCHousehold.marginal_labor_tax_rate(HH)
-    vcat(
-        output_tax_rate,
-        tax_rate,
-        duty_rate,
-        capital_tax_rate,
-        fica_tax_rate,
-        labor_tax_rate
-        ) |>
-        x -> DefaultDict(0, 
-            Dict((row[:row], row[:col], row[:region], row[:parameter]) => row[:value] for row in eachrow(x))
-        ) |> Q->
+    parameter_data(HH; output = :DefaultDict) |> Q->
     @parameters(M, begin
         OTR[r=states, s=sectors], Q[:otr, s, r, :output_tax_rate], (description = "Output tax rate",)
         TR[r=states, g=commodities], Q[g, :tr, r, :tax_rate], (description = "Tax rate",)
@@ -59,17 +308,17 @@ function household_model(
 
     @commodities(M, begin
         PA[r=states, g=commodities], (description = "Regional market (input)",)
-        PY[r=states, g=commodities], (description = "Regional market (output)",)
-        PD[r=states, g=commodities], (description = "Local market price",)
-        PN[g=commodities], (description = "National market",)
-        PL[r=states], (description = "Wage rate",)
-        PK, (description = "Aggregate return to capital",)
-        PM[r=states, m=margins], (description = "Margin price",)
         PC[r=states, h=households], (description = "Consumer price index",)
+        PD[r=states, g=commodities], (description = "Local market price",)
         PFX, (description = "Foreign exchange",)
+        PK, (description = "Aggregate return to capital",)
+        PL[r=states], (description = "Wage rate",)
+        PLS[r=states, h=households], (description = "Leisure price",)
+        PM[r=states, m=margins], (description = "Margin price",)
+        PN[g=commodities], (description = "National market",)
+        PY[r=states, g=commodities], (description = "Regional market (output)",)
         RK[r=states, s=sectors], (description = "Sectoral rental rate",)
         RKS, (description = "Capital stock",)
-        PLS[r=states, h=households], (description = "Leisure price",)
     end)
 
 
@@ -91,7 +340,7 @@ function household_model(
 
     sectoral_output(HH; output = :DefaultDict) |> Q->
     @production(M, Y[r=states, s=sectors], [t=0, s=0, va=>s=1], begin
-        @output(PY[r,g=commodities], Q[g, s, r, :intermediate_supply],                     t, taxes = [Tax(GOVT, M[:OTR][r,s])], reference_price = 1-Q[:otr, s, r, :output_tax_rate])
+        @output(PY[r,g=commodities], Q[g, s, r, :intermediate_supply],                     t,  taxes = [Tax(GOVT, M[:OTR][r,s])], reference_price = 1-Q[:otr, s, r, :output_tax_rate])
         @input(PA[r, g=commodities], Q[g, s, r, :intermediate_demand],                     s)
         @input(PL[r],            sum(Q[l, s, r, :labor_demand] for l in labor_demand),     va)
         @input(RK[r, s],         sum(Q[k, s, r, :capital_demand] for k in capital_demand), va, taxes = [Tax(GOVT, M[:TK][r,s])], reference_price = 1 + Q[:ktr, s, r, :capital_tax_rate])
@@ -125,21 +374,21 @@ function household_model(
 
     consumption_data(HH; output = :DefaultDict) |> Q->
     @production(M, C[r=states, h=households], [t=0, s=1], begin
-        @output(PC[r, h],           sum(Q[g, h, r, :personal_consumption] for g in commodities), t)
+        @output(PC[r, h],        sum(Q[g, h, r, :personal_consumption] for g in commodities), t)
         @input(PA[r, g=commodities], Q[g, h, r, :personal_consumption],                       s)
     end)
 
-    leisure_data(HH; output = :DefaultDict) |> Q->
+    labor_data(HH; output = :DefaultDict) |> Q->
     @production(M, LS[r=states, h=households], [t=0, s=1], begin
         @output(PL[q=states], Q[q, h, r, :labor_endowment], t, taxes = [Tax(GOVT, M[:LTR][r,h] + M[:FICA][r,h])], reference_price = 1 - Q[:ltr, h, r, :marginal_labor_tax_rate] - Q[:ftr, h, r, :fica_tax_rate])
-        @input(PLS[r, h],   Q[:ls, h, r, :labor_supply], s)
+        @input(PLS[r, h],     Q[:ls, h, r, :labor_supply],  s)
     end)
 
 
     capital_stock_data(HH; output = :DefaultDict) |> Q->
     @production(M, KS, [t=etaK, s=1], begin
         @output(RK[r=states, s=sectors], Q[s, r, :capital_demand], t)
-        @input(RKS,                     sum(Q[ss, rr, :capital_demand] for ss in sectors, rr in states), s)
+        @input(RKS,                  sum(Q[ss, rr, :capital_demand] for ss in sectors, rr in states), s)
     end)
 
 
@@ -147,33 +396,33 @@ function household_model(
     representative_agent_data(HH; output = :DefaultDict) |> Q->
     @demand(M, RA[r=states, h=households], begin
         @final_demand(PC[r, h], sum(Q[g, h, r, :personal_consumption] for g in commodities; init=0))
-        @final_demand(PLS[r, h], Q[:ld, h, r, :leisure_demand])
-        @endowment(PLS[r, h], Q[:ld, h, r, :leisure_demand] + Q[:ls, h, r, :labor_supply])
-        @endowment(PFX, sum(Q[trn, h, r, :transfer_payment] for trn in transfers; init=0))
-        @endowment(PLS[r, h], (M[:LTR][r,h] - Q[:altr, h, r, :average_labor_tax_rate]) * sum(Q[dest, h, r, :labor_endowment] for dest in states; init=0))
-        @endowment(PK, Q[:interest, h, r, :household_interest])
-        @endowment(PFX, -Q[:savings, h, r, :savings]*SAVERATE)
+        @final_demand(PLS[r, h],    Q[:ld, h, r, :leisure_demand])
+        @endowment(PLS[r, h],       Q[:ld, h, r, :leisure_demand] + Q[:ls, h, r, :labor_supply])
+        @endowment(PFX,         sum(Q[trn, h, r, :transfer_payment] for trn in transfers; init=0))
+        @endowment(PLS[r, h],   (M[:LTR][r,h] - Q[:altr, h, r, :average_labor_tax_rate]) * sum(Q[dest, h, r, :labor_endowment] for dest in states; init=0))
+        @endowment(PK,              Q[:interest, h, r, :household_interest])
+        @endowment(PFX,            -Q[:savings, h, r, :savings]*SAVERATE)
     end, elasticity = Q[:els, h, r, :leisure_consumption_elasticity])
 
     NYSE_data(HH; output = :DefaultDict) |> Q->
     @demand(M, NYSE, begin
-        @final_demand(PK, sum(Q[row, col, r, :household_supply] for row in commodities, col in personal_consumption, r in states; init=0) + sum(Q[row, col, r, :capital_demand] for row in capital_demand, col in sectors, r in states; init=0))
+        @final_demand(PK,                       sum(Q[row, col, r, :household_supply] for row in commodities, col in personal_consumption, r in states; init=0) + sum(Q[row, col, r, :capital_demand] for row in capital_demand, col in sectors, r in states; init=0))
         @endowment(PY[r=states, g=commodities], sum(Q[g, col, r, :household_supply] for col in personal_consumption; init=0))
-        @endowment(RKS, sum(Q[k, s, r, :capital_demand] for k in capital_demand, s in sectors, r in states;init=0)*SSK)
+        @endowment(RKS,                         sum(Q[k, s, r, :capital_demand] for k in capital_demand, s in sectors, r in states;init=0)*SSK)
     end)
 
     invest_data(HH; output = :DefaultDict) |> Q->
     @demand(M, INVEST, begin
         @final_demand(PA[r=states, g=commodities], Q[g, :invest, r, :investment_final_demand])
-        @endowment(PFX, sum(Q[:savings, h, r, :savings] for h in households, r in states; init=0)*SAVERATE)
+        @endowment(PFX,                        sum(Q[:savings, h, r, :savings] for h in households, r in states; init=0)*SAVERATE)
         @endowment(PFX, 0) # fsav0
     end)
 
     government_data(HH; output = :DefaultDict) |> Q->
     @demand(M, GOVT, begin
         @final_demand(PA[r=states, g=commodities], Q[g, :govern, r, :government_final_demand])
-        @endowment(PFX, -TRANS*sum(Q[trn, h, r, :transfer_payment] for trn in transfers, h in households, r in states; init=0))
-        @endowment(PFX, Q[:gd, :gd, :gd, :government_deficit])
+        @endowment(PFX,                 -TRANS*sum(Q[trn, h, r, :transfer_payment] for trn in transfers, h in households, r in states; init=0))
+        @endowment(PFX,                            Q[:gd, :gd, :gd, :government_deficit])
         @endowment(PLS[r=states, h=households], -(M[:LTR][r,h] - Q[:altr, h, r, :average_labor_tax_rate]) * sum(Q[dest, h, r, :labor_endowment] for dest in states; init=0))
     end)
 
@@ -203,6 +452,43 @@ function household_model(
 end
 
 
+"""
+    parameter_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
+
+Returns initial parameter data for the household model.
+
+```julia
+vcat(
+    output_tax_rate(data),
+    tax_rate(data),
+    duty_rate(data),
+    capital_tax_rate(data),
+    fica_tax_rate(data),
+    marginal_labor_tax_rate(data)
+    )
+```
+"""
+function parameter_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
+
+    df = vcat(
+        WiNDCHousehold.output_tax_rate(data),
+        WiNDCHousehold.tax_rate(data),
+        WiNDCHousehold.duty_rate(data),
+        WiNDCHousehold.capital_tax_rate(data),
+        WiNDCHousehold.fica_tax_rate(data),
+        WiNDCHousehold.marginal_labor_tax_rate(data)
+        ) 
+
+    if output == :DataFrame
+        return df
+    elseif output == :DefaultDict
+        return DefaultDict(0,
+            Dict((row[:row], row[:col], row[:region], row[:parameter]) => row[:value] for row in eachrow(df))
+        )
+    else
+        error("Unsupported output type: $output")
+    end
+end
 
 
 """
@@ -387,7 +673,7 @@ function consumption_data(data::T; output = :DataFrame) where T<:AbstractHouseho
 end
 
 """
-    leisure_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
+    labor_data(data::T, output = :DataFrame) where T<:AbstractHouseholdTable
 
 Extracts leisure-related parameters from the regional data table.
 
@@ -400,7 +686,7 @@ Extracts leisure-related parameters from the regional data table.
     )
 ```
 """
-function leisure_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
+function labor_data(data::T; output = :DataFrame) where T<:AbstractHouseholdTable
 
    df = vcat(
         table(data, :Labor_Endowment),
