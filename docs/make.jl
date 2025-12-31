@@ -17,9 +17,9 @@ const _PAGES = [
     #    "data/calibration.md",
     #    "data/set_listing.md",
     #],
-    #"Model" => [
-    #    "model/model.md"
-    #],
+    "Model" => [
+        "model/model.md"
+    ],
     "API Reference" => ["api.md"],
 ]
 
