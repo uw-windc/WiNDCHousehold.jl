@@ -10,13 +10,13 @@ const _PAGES = [
     #    "quick_start.md",
     #    "yaml.md",
     ],
-    #"Data" => [
+    "Data" => [
     #    "data/maps.md",
     #    "data/input_data.md",
     #    "data/disaggregation.md",
     #    "data/calibration.md",
-    #    "data/set_listing.md",
-    #],
+        "data/sets.md",
+    ],
     "Model" => [
         "model/model.md"
     ],
