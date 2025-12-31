@@ -22,7 +22,44 @@ end
 
 
 
+"""
+    RawHouseholdData
+    RawHouseholdData(
+        state_table::WiNDCRegional.State,
+        cps::Dict{Symbol,DataFrame},
+        nipa::DataFrame,
+        acs::DataFrame,
+        medicare::DataFrame,
+        labor_tax_rates::DataFrame,
+        cex_income_elasticities::DataFrame,
+        pce_shares::DataFrame,
+        capital_tax_rates::DataFrame;
+        state_fips = WiNDCHousehold.load_state_fips(),
+        income_categories = WiNDCHousehold.load_cps_income_categories(),
+        state_abbreviations = WiNDCHousehold.load_state_fips(cols_to_keep = [:state, :abbreviation]),
+    )
 
+A container for all raw data used in WiNDCHousehold processing.
+
+# Fields
+
+- `state_fips::DataFrame`: State FIPS codes.
+- `income_categories::DataFrame`: Income category mappings.
+- `state_abbreviations::DataFrame`: State abbreviations.
+- `income::DataFrame`: CPS income data.
+- `numhh::DataFrame`: CPS number of households data.
+- `nipa::DataFrame`: NIPA data.
+- `acs_commute::DataFrame`: ACS commute data.
+- `medicare::DataFrame`: Medicare data.
+- `labor_tax_rates::DataFrame`: Labor tax rates.
+- `capital_tax_rates::DataFrame`: Capital tax rates.
+- `nipa_cps::DataFrame`: NIPA vs CPS income categories mapping.
+- `windc_vs_nipa_income_categories::DataFrame`: WiNDC vs NIPA income categories mapping.
+- `nipa_fringe::DataFrame`: NIPA fringe benefit markup data.
+- `cps_data::DataFrame`: Processed CPS data.
+- `cex_income_elasticities::DataFrame`: CEX income elasticities data.
+- `pce_shares::DataFrame`: PCE shares data.
+"""
 struct RawHouseholdData
     state_fips::DataFrame
     income_categories::DataFrame

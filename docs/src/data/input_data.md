@@ -73,7 +73,7 @@ magic_numbers:
 ## Loading the Data
 
 ```@docs
-household_raw_data
+WiNDCHousehold.household_raw_data
 ```
 
 

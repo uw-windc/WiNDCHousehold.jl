@@ -32,7 +32,18 @@ function load_state_fips(;
 
 end
 
+"""
+    load_cps_income_categories(;
+            path = joinpath(@__DIR__, "maps", "cps_income_categories.csv"),
+            cols_to_keep = [:windc, :source]
+        )
 
+Load a CSV file containing CPS income category mappings. The default path is
+set to `maps/cps_income_categories.csv` relative to this file's directory. You can specify
+which columns to keep using the `cols_to_keep` argument.
+
+Returns a DataFrame with the specified columns as Strings.
+"""
 function load_cps_income_categories(;
         path = joinpath(@__DIR__, "maps", "cps_income_categories.csv"),
         cols_to_keep = [:windc, :source]
@@ -47,10 +58,18 @@ function load_cps_income_categories(;
     return income_categories
 end
 
+"""
+    load_windc_naics_map(;
+            path = joinpath(@__DIR__, "maps", "naics_windc_map.csv")
+        )
 
+Load a CSV file containing the mapping between WiNDC labels and NAICS codes.
+The default path is set to `maps/naics_windc_map.csv` relative to this file's directory.
+
+Returns a DataFrame with columns `:naics` and `:windc`.
+"""
 function load_windc_naics_map(;
-        path = joinpath(@__DIR__, "maps", "naics_windc_map.csv"),
-        #cols_to_keep = [:windc, :naics]
+        path = joinpath(@__DIR__, "maps", "naics_windc_map.csv")
     )
 
     windc_naics_map = CSV.read(
