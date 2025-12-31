@@ -82,7 +82,7 @@ All auxiliaries start with a value of 1.
 
 ### Y - Sectoral Production in Each State
 
-[`sectoral_production`](@ref)
+[`WiNDCHousehold.sectoral_output`](@ref)
 ```julia
 sectoral_output(HH; output = :DefaultDict) |> Q->
 @production(M, Y[r=states, s=sectors], [t=0, s=0, va=>s=1], begin
@@ -95,7 +95,7 @@ end)
 
 ### X - Commodity Disposition in Each State
 
-[`disposition_data`](@ref)
+[`WiNDCHousehold.disposition_data`](@ref)
 ```julia
 disposition_data(HH; output = :DefaultDict) |> Q->
 @production(M, X[r=states, g=commodities], [s=0, t=4], begin
@@ -108,7 +108,7 @@ end)
 
 ### A - Armington Commodity Absorption in Each State
 
-[`armington_data`](@ref)
+[`WiNDCHousehold.armington_data`](@ref)
 ```julia
 armington_data(HH; output = :DefaultDict) |> Q-> 
 @production(M, A[r=states, g=commodities], [t=0, s=0, dm => s = 2, d=>dm=4], begin
@@ -123,7 +123,7 @@ end)
 
 ### MS - Margin Supply and Demand in Each State
 
-[`margin_supply_demand`](@ref)
+[`WiNDCHousehold.margin_supply_demand`](@ref)
 ```julia
 margin_supply_demand(HH; output = :DefaultDict) |> Q->
 @production(M, MS[r=states, m=margins], [t=0, s=0], begin
@@ -135,7 +135,7 @@ end)
 
 ### C - Household Consumption in Each State
 
-[`consumption_data`](@ref)
+[`WiNDCHousehold.consumption_data`](@ref)
 ```julia
 consumption_data(HH; output = :DefaultDict) |> Q->
 @production(M, C[r=states, h=households], [t=0, s=1], begin
@@ -146,7 +146,7 @@ end)
 
 ### LS - Labor Supply in Each State
 
-[`labor_data`](@ref)
+[`WiNDCHousehold.labor_data`](@ref)
 ```julia
 labor_data(HH; output = :DefaultDict) |> Q->
 @production(M, LS[r=states, h=households], [t=0, s=1], begin
@@ -157,7 +157,7 @@ end)
 
 ### KS - Capital Stock Transformation
 
-[`capital_stock_data`](@ref)
+[`WiNDCHousehold.capital_stock_data`](@ref)
 ```julia
 capital_stock_data(HH; output = :DefaultDict) |> Q->
 @production(M, KS, [t=etaK, s=1], begin
@@ -170,7 +170,7 @@ end)
 
 ### RA - Representative Agent Demand in Each State
 
-[`representative_agent_data`](@ref)
+[`WiNDCHousehold.representative_agent_data`](@ref)
 ```julia
 representative_agent_data(HH; output = :DefaultDict) |> Q->
 @demand(M, RA[r=states, h=households], begin
@@ -186,7 +186,7 @@ end, elasticity = Q[:els, h, r, :leisure_consumption_elasticity])
 
 ### NYSE - Aggregate Capital Owner Demand
 
-[`NYSE_data`](@ref)
+[`WiNDCHousehold.NYSE_data`](@ref)
 ```julia
 NYSE_data(HH; output = :DefaultDict) |> Q->
 @demand(M, NYSE, begin
@@ -198,7 +198,7 @@ end)
 
 ### INVEST - Aggregate Investor Demand
 
-[`invest_data`](@ref)
+[`WiNDCHousehold.invest_data`](@ref)
 ```julia
 invest_data(HH; output = :DefaultDict) |> Q->
 @demand(M, INVEST, begin
@@ -210,7 +210,7 @@ end)
 
 ### GOVT - Aggregate Government Demand
 
-[`government_data`](@ref)
+[`WiNDCHousehold.government_data`](@ref)
 ```julia
 government_data(HH; output = :DefaultDict) |> Q->
 @demand(M, GOVT, begin
@@ -225,7 +225,7 @@ end)
 
 ### SSK - Steady-State Capital Stock Constraint
 
-[`ssk_data`](@ref)
+[`WiNDCHousehold.ssk_data`](@ref)
 ```julia
 ssk_data(HH; output = :DefaultDict) |> Q->
 @aux_constraint(M, SSK, 
@@ -235,7 +235,7 @@ ssk_data(HH; output = :DefaultDict) |> Q->
 
 ### SAVERATE - Domestic Saving Rate Constraint
 
-[`saverate_data`](@ref)
+[`WiNDCHousehold.saverate_data`](@ref)
 ```julia
 saverate_data(HH; output = :DefaultDict) |> Q->
 @aux_constraint(M, SAVERATE, 
@@ -245,7 +245,7 @@ saverate_data(HH; output = :DefaultDict) |> Q->
 
 ### TRANS - Budget Balance Rationing Variable Constraint
 
-[`trans_data`](@ref)
+[`WiNDCHousehold.trans_data`](@ref)
 ```julia
 trans_data(HH; output = :DefaultDict) |> Q->
 @aux_constraint(M, TRANS,
@@ -255,7 +255,7 @@ trans_data(HH; output = :DefaultDict) |> Q->
 
 ### CPI - Consumer Price Index Constraint
 
-[`cpi_data`](@ref)
+[`WiNDCHousehold.cpi_data`](@ref)
 ```julia
 cpi_data(HH; output = :DefaultDict) |> Q->
 @aux_constraint(M, CPI,

@@ -781,7 +781,46 @@ function government_deficit(
     return df
 end
 
+"""
+    leisure_consumption_elasticity(
+        HH::HouseholdTable;
+        column::Symbol = :value,
+        output::Symbol = :value,
+        parameter::Symbol = :leisure_consumption_elasticity,
+    )
 
+Calculate the leisure consumption elasticity for households.
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:leisure_consumption_elasticity`).   
+
+## Returns
+
+A `DataFrame` with the leisure consumption elasticity for each region and year.
+
+## Calculation
+
+Leisure consumption elasticity is calculated as:
+
+```math
+{\\rm Leisure\\_Consumption\\_Elasticity} = \\epsilon \\cdot \\frac{(PCE + LD)}{PCE} \\cdot \\frac{LS}{LD}
+```
+
+where 
+
+- \\( \\epsilon \\) is the leisure income elasticity (0.2),
+- `PCE` is Personal Consumption Expenditure
+- `LD` is Leisure Demand
+- `LS` is Labor Supply
+```
+"""
 function leisure_consumption_elasticity(
         HH::HouseholdTable;
         column::Symbol = :value,
