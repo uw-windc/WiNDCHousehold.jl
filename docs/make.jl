@@ -7,7 +7,7 @@ DocMeta.setdocmeta!(WiNDCHousehold, :DocTestSetup, :(using WiNDCHousehold); recu
 const _PAGES = [
     "Introduction" => [
         "index.md",
-    #    "quick_start.md",
+        "quick_start.md",
     #    "yaml.md",
     ],
     "Data" => [

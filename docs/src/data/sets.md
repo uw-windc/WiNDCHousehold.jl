@@ -33,6 +33,7 @@ table(HH, :commodity) # The household table filtered to only the commodity rows
 table(HH, :Intermediate_Demand, :Intermediate_Supply) # The Intermediate Demand and Supply parameters
 ```
 
+By convention, we give sets lower_case_names and parameters Upper_Camel_Case names.
 
 ## Sets
 
