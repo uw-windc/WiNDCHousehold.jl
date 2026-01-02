@@ -19,7 +19,7 @@ Then you can run the following code:
 ```julia
 using WiNDCHousehold
 
-state_table, HH_Raw_Data = WiNDCHousehold.load_household_raw_data()
+state_table, HH_Raw_Data = WiNDCHousehold.household_raw_data()
 
 HH = WiNDCHousehold.build_household_table(
     state_table,
