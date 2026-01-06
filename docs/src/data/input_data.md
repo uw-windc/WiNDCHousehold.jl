@@ -1,35 +1,17 @@
-# WiNDC Household Disaggregation
+# Disaggregation Data
 
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://uw-windc.github.io/WiNDCHousehold.jl/dev/)
+This section describes the input data used for disaggregation in the `WiNDCHousehold` module. The Household data is disaggregated from the [`WiNDCRegional`](https://github.com/uw-windc/WiNDCRegional.jl) module using various data sources.
 
-This package contains functions and data structures to disaggregate household-level data for the WiNDC model.
-
-## Basic Example
-
-In order to run this code you will need to download two data files:
+The data is currently assembled using a mix of local data and API calls to government data sources. The data is provided in two files which can be downloaded here:
 
 1. [The raw household disaggregation data](https://drive.google.com/file/d/1dYt5wIbv8SKjxKx-1Ehk9EsoNDJuR_j-/view?usp=sharing) - This needs to be extracted.
 2. [The state data file](https://drive.google.com/file/d/1VNThE8YUyMCxzJm9scNqn7iJL6MtHnZ0/view?usp=sharing)
 
-In your working directory create a file called `household.yaml` and populate it with the contents of the [Household YAML File](#household-yaml-file) section below, making sure to update the paths to point to the files you downloaded.
+## YAML Configuration
 
-Then you can run the following code:
+The data files are specified in a YAML configuration file named `household.yaml`. This file contains paths to the data files and any necessary API keys for accessing government data sources.
 
-
-```julia
-using WiNDCHousehold
-
-state_table, HH_Raw_Data = WiNDCHousehold.household_raw_data()
-
-HH = WiNDCHousehold.build_household_table(
-    state_table,
-    HH_Raw_Data;
-)
-```
-
-
-
-## Household YAML File
+This file is structured as follows:
 
 ```yaml
 metadata:
@@ -86,6 +68,12 @@ magic_numbers:
     hh3: 47664
     hh4: 64910
     hh5: 112221
+```
+
+## Loading the Data
+
+```@docs
+WiNDCHousehold.household_raw_data
 ```
 
 

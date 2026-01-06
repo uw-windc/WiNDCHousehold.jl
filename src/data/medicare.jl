@@ -75,7 +75,36 @@ function clean_aggregate_medi_data(df::DataFrame)
         )
 end
 
+"""
+    load_medicare_data_api(
+        census_api_key::String;
+        url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
+        output_path::String = tempname(),
+        years::UnitRange{Int} = 2009:2024,
+        state_fips::DataFrame = load_state_fips()
+    )
 
+Load Medicare and Medicaid data from the CMS website for the specified years.
+
+## Required Arguments
+
+- `census_api_key::String`: The Census API key.
+
+## Optional Arguments
+
+- `url::String`: The url of the Medicare/Medicaid data zip file. Default is the CMS website link.
+- `output_path::String`: The path to save the downloaded and extracted data. Default is
+    a temporary directory.
+- `years::UnitRange{Int}`: The range of years to include in the data
+    Default is 2009 to 2024.
+- `state_fips::DataFrame`: A DataFrame containing state FIPS codes. Default
+    is the result of `load_state_fips()`.
+
+## Returns
+
+A DataFrame containing Medicare and Medicaid data by state and year.
+
+"""
 function load_medicare_data_api(
     census_api_key::String;
     url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
@@ -84,7 +113,7 @@ function load_medicare_data_api(
     state_fips::DataFrame = load_state_fips()
 )
     
-    data = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path="medicare_data")
+    data = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path=output_path)
 
     files_to_load = Dict(
         :medicare => "MEDICARE_AGGREGATE20.CSV",

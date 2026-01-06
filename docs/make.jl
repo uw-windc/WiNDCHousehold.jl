@@ -7,19 +7,19 @@ DocMeta.setdocmeta!(WiNDCHousehold, :DocTestSetup, :(using WiNDCHousehold); recu
 const _PAGES = [
     "Introduction" => [
         "index.md",
-    #    "quick_start.md",
+        "quick_start.md",
     #    "yaml.md",
     ],
-    #"Data" => [
+    "Data" => [
     #    "data/maps.md",
-    #    "data/input_data.md",
+        "data/input_data.md",
     #    "data/disaggregation.md",
     #    "data/calibration.md",
-    #    "data/set_listing.md",
-    #],
-    #"Model" => [
-    #    "model/model.md"
-    #],
+        "data/sets.md",
+    ],
+    "Model" => [
+        "model/model.md"
+    ],
     "API Reference" => ["api.md"],
 ]
 

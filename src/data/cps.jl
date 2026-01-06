@@ -121,6 +121,57 @@ end
     load_cps_data_api(api_key; years = 2001:2022)
 
 Load all the CPS data in the given year range. 
+
+## Arguments
+
+- `api_key::String`: The Census API key.
+
+## Optional Arguments
+
+- `years::UnitRange{Int}`: The range of years to load. Defaults to `2001:2022`.
+
+## Return
+
+Returns a NamedTuple with the following DataFrames:
+
+- `income::DataFrame`: Income data by household type and state.
+- `shares::DataFrame`: Share of income by household type and state.
+- `count::DataFrame`: Count of households by household type and state.
+- `numhh::DataFrame`: Number of households by household type and state.
+
+## Variables Loaded
+
+| Variable | Description |
+| ---------|-------------|
+| hwsval  | wages and salaries | 
+| hseval  | self-employment (nonfarm) | 
+| hfrval  | self-employment farm | 
+| hucval  | unemployment compensation | 
+| hwcval  | workers compensation | 
+| hssval  | social security | 
+| hssival | supplemental security | 
+| hpawval | public assistance or welfare | 
+| hvetval | veterans benefits | 
+| hsurval | survivors income | 
+| hdisval | disability | 
+| hintval | interest | 
+| hdivval | dividends | 
+| hrntval | rents | 
+| hedval  | educational assistance | 
+| hcspval | child support | 
+| hfinval | financial assistance | 
+| hoival  | other income | 
+| htotval | total household income | 
+| gestfips | state fips |
+| a_exprrp | expanded relationship code |
+| h_hhtype | type of household interview |
+| pppos | person identifier |
+| marsupwt | asec supplement final weight |
+| hdstval | retirement distributions - Post 2019|
+| hpenval | pension income - Post 2019 |
+| hannval | annuities - Post 2019 |
+| hretval | retirement income - Pre 2019 |
+
 """
 function load_cps_data_api(api_key; years = 2001:2022)
 

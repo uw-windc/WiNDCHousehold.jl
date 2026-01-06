@@ -21,11 +21,24 @@ adjusted for marginal labor taxes and FICA taxes.
 
 ## Returns
 
-A `DataFrame` with the aggregated labor supply for each region and year.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :ls | household | state | year | :labor_supply | value |
+
+Non-symbol values are sets.
+
+## Parameters 
+
+These values are extracted from the HouseholdTable
+
+- `Labor Endowment`
+- `Marginal Labor Tax`
+- `FICA Tax`
 
 ## Calculation
 
-Labor supply is calculated as:
 ```math
 {\\rm Labor\\_Supply} = \\sum (Labor\\_Endowment - Marginal\\_Labor\\_Tax - FICA\\_Tax)
 ```
@@ -51,39 +64,115 @@ end
 
 
 """
-    total_supply(data::HouseholdTable; column::Symbol = :value, output::Symbol = :value)
+    total_supply(
+        data::HouseholdTable; 
+        column::Symbol = :value, 
+        output::Symbol = :value,
+        parameter::Symbol = :total_supply
+    )
 
-Calculate the total supply for each commodity. The total supply is defined as the sum of:
+Calculate the total supply for each commodity. 
+    
+## Arguments
+
+- `data::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol = :value`: The column to aggregate (default is `:value`).
+- `output::Symbol = :value`: The name of the output column (default is `:value`).
+- `parameter::Symbol = :total_supply`: The parameter to assign to the output (default is `:total_supply`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :tot_sup | state | year | :total_supply | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
 
 - `Intermediate_Supply`
 - `Household_Supply`
+
+## Calculation
+    
+```math
+{\\rm Total\\_Supply} = \\sum_{sectors} {\\rm Intermediate\\_Supply}} + {{\\rm Household\\_Supply}}
+```
 """
-function total_supply(data::HouseholdTable; column::Symbol = :value, output::Symbol = :value)
+function total_supply(
+        data::HouseholdTable; 
+        column::Symbol = :value, 
+        output::Symbol = :value,
+        parameter::Symbol = :total_supply
+    )
+    
     return table(data, :Intermediate_Supply, :Household_Supply) |>
         x -> groupby(x, [:row, :region, :year]) |>
         x -> combine(x, column => sum => output) |>
-        x -> transform(x, :row => ByRow(y -> (:tot_sup, :total_supply)) => [:col, :parameter])
+        x -> transform(x, :row => ByRow(y -> (:tot_sup, parameter)) => [:col, :parameter])
 end
 
 """
     absorption(
         HH::HouseholdTable; 
         column::Symbol = :value, 
-        output::Symbol = :value
+        output::Symbol = :value,
+        parameter::Symbol = :absorption,
+        normalize::Bool = false
     )
 
-Calculate the absorption for each commodity in each region. The absorption is 
-defined as the sum of:
+Calculate the absorption for each commodity in each region. 
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:absorption`).
+- `normalize::Bool`: Flip the resulting sign of the data (default is `false`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :abs | state | year | :absorption | value |
+
+Non-symbol values are sets.
+
+!!!note "Negative Values
+    Absorption is a demand-side value, which means the resulting values will be 
+    negative. If you wish to have positive values, set the `normalize` argument to `true`.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
 
 - `Intermediate_Demand`
 - `Other_Final_Demand`
 
-Note that absorption is negative.
+## Calculation
+
+```math
+{\\rm Absorption} = \\sum_{\\rm sectors} {\\rm Intermediate\\_Demand}} + \\sum_{\\rm other\\_final\\_demand}{{\\rm Other\\_Final\\_Demand}}
+```
 """
 function absorption(
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
+        parameter::Symbol = :absorption,
         normalize::Bool = false
     )
     return table(HH, :Intermediate_Demand, :Other_Final_Demand) |>
@@ -91,7 +180,7 @@ function absorption(
         x -> combine(x, column => sum => output) |>
         x -> transform(x, 
             :value => ByRow(y -> normalize ? -y : y) => :value,
-            :row => ByRow(y -> (:abs, :absorption)) => [:col, :parameter]
+            :row => ByRow(y -> (:abs, parameter)) => [:col, :parameter]
         )
 end
 
@@ -101,18 +190,48 @@ end
         column::Symbol = :value,
         output::Symbol = :value,
         parameter::Symbol = :region_local_supply,
-        minimal::Bool = false
     )
 
-Calculate the regional local supply for each commodity in each region. The regional local supply
-is defined as the sum of `Local_Margin_Supply` and `Local_Demand`.
+Calculate the regional local supply for each commodity in each region. 
+    
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:region_local_supply`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :rls | state | year | :region_local_supply | value |
+
+Non-symbol values are sets.
+    
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Local_Margin_Supply`
+- `Local_Demand`
+
+## Calculation
+
+```math
+{\\rm Regional\\_Local\\_Supply} = \\sum (Local\\_Margin\\_Supply + Local\\_Demand)
+```
 """
 function regional_local_supply(
         HH::HouseholdTable;
         column::Symbol = :value,
         output::Symbol = :value,
         parameter::Symbol = :region_local_supply,
-        minimal::Bool = false
     )
 
     df = table(HH, :Local_Margin_Supply, :Local_Demand; normalize=:Use) |>
@@ -123,10 +242,6 @@ function regional_local_supply(
         ) |>
         x -> select(x, [:row, :col, :region, :year, :parameter, output])
 
-    if minimal
-        df |>
-            x -> select!(x, [:row, :region, :year, :parameter, output])
-    end
 
     return df
 end
@@ -136,19 +251,49 @@ end
         HH::HouseholdTable;
         column::Symbol = :value,
         output::Symbol = :value,
-        parameter::Symbol = :netport,
-        minimal::Bool = false
+        parameter::Symbol = :netport
     )
 
-Calculate the netports for each commodity in each region. The netport
-is defined as the difference between `Export` and `Reexport`.
+Calculate the netports for each commodity in each region. 
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:netport`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :netport | state | year | :netport | value |
+
+Non-symbol values are sets.
+
+## Parameters 
+
+These values are extracted from the HouseholdTable 
+
+- `Export`
+- `Reexport`
+
+## Calculation
+
+```math
+{\\rm Netports} = \\sum (Export + Reexport)
+```
 """
 function netports(
         HH::HouseholdTable;
         column::Symbol = :value,
         output::Symbol = :value,
-        parameter::Symbol = :netport,
-        minimal::Bool = false
+        parameter::Symbol = :netport
     )
 
     df = table(HH, :Export, :Reexport; normalize = :Export) |>
@@ -159,11 +304,6 @@ function netports(
         ) |>
         x -> select(x, [:row, :col, :region, :year, :parameter, output])
 
-    if minimal
-        df |>
-            x -> select!(x, [:row, :region, :year, :parameter, output])
-    end
-
     return df
 end
 
@@ -173,20 +313,50 @@ end
         HH::HouseholdTable;
         column::Symbol = :value,
         output::Symbol = :value,
-        parameter::Symbol = :region_national_supply,
-        minimal::Bool = false
+        parameter::Symbol = :region_national_supply
     )
 
-Calculate the regional national supply for each commodity in each region. The regional national supply
-is defined as total supply minus net exports minus regional local supply.
+Calculate the regional national supply for each commodity in each region. 
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:region_national_supply`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :rns | state | year | :region_national_supply | value |
+
+Non-symbol values are sets.
+
+## Aggregate Parameters
+
+- [`WiNDCHousehold.total_supply`](@ref)
+- [`WiNDCHousehold.netports`](@ref)
+- [`WiNDCHousehold.regional_local_supply`](@ref)
+
+## Calculation
+
+```math
+{\\rm Regional\\_National\\_Supply} = {\\rm Total\\_Supply} - {\\rm Netports} - {\\rm Regional\\_Local\\_Supply}
+```
+
 
 """
 function regional_national_supply(
         HH::HouseholdTable;
         column::Symbol = :value,
         output::Symbol = :value,
-        parameter::Symbol = :region_national_supply,
-        minimal::Bool = false
+        parameter::Symbol = :region_national_supply
     )
 
     df = outerjoin(
@@ -202,11 +372,6 @@ function regional_national_supply(
     ) |>
     x -> select!(x, [:row, :col, :region, :year, :parameter, output])
 
-    if minimal
-        df |>
-            x -> select!(x, [:row, :region, :year, :parameter, output])
-    end
-
     return df
 
 end
@@ -218,31 +383,47 @@ end
             HH::HouseholdTable; 
             column::Symbol = :value, 
             output::Symbol = :value,
-            parameter = :output_tax_rate,
-            minimal::Bool = false
+            parameter = :output_tax_rate
         )
 
-Calculate the output tax rate for each commodity in each region. The output tax rate
-is defined as the ratio of `Output_Tax` to the sum over commodities of `Intermediate_Supply`.
+Calculate the output tax rate for each commodity in each region.
 
-## Required Arguments
+## Arguments
 
-- `HH::HouseholdTable`: The regional data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:output_tax_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:output_tax_rate`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :otr | sector | state | year | :output_tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters 
+
+- `Intermediate_Supply`
+- `Output_Tax`
+
+## Calculation
+
+```math
+{\\rm Output\\_Tax\\_Rate} = \\frac{\\rm Output\\_Tax}{\\sum_{\\rm commodity} \\rm Intermediate\\_Supply}
+```
 """
 function output_tax_rate(
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
-        parameter = :output_tax_rate,
-        minimal::Bool = false
+        parameter = :output_tax_rate
     )
 
     df = innerjoin(
@@ -258,11 +439,6 @@ function output_tax_rate(
         )  |>
         x -> select(x, [:row, :col, :region, :year, :parameter, output])
 
-    if minimal
-        df |>
-            x -> select!(x, [:col, :region, :year, :parameter, output])
-    end
-
     return df
 
 end
@@ -272,31 +448,52 @@ end
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
-        parameter = :tax_rate,
-        minimal::Bool = false
+        parameter = :tax_rate
     )
 
-Calculate the tax rate for each commodity in each region. The tax rate
-is defined as the ratio of `Tax` to `Absorption`.
+Calculate the tax rate, inclusive of subsidies, for each commodity in each region. 
 
-## Required Arguments
+## Arguments
 
-- `HH::HouseholdTable`: The regional data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:tax_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:tax_rate`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :tr | state | year | :tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters 
+
+These values are extracted from the HouseholdTable
+
+- `Tax`
+
+## Aggregate Parameters
+
+- [`WiNDCHousehold.absorption`](@ref)
+
+## Calculation
+
+```math
+{\\rm Tax\\_Rate} = \\frac{\\rm Tax}{\\rm Absorption}
+```
 """
 function tax_rate(
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
-        parameter = :tax_rate,
-        minimal::Bool = false
+        parameter = :tax_rate
     )
 
     df = innerjoin(
@@ -310,11 +507,6 @@ function tax_rate(
         ) |>
         x -> select(x, [:row, :col, :region, :year, :parameter, output])
 
-    if minimal
-        df |>
-            x -> select!(x, [:row, :region, :year, :parameter, output])
-    end
-
     return df
 
 end
@@ -326,25 +518,43 @@ end
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
-        parameter = :duty_rate,
-        minimal::Bool = false
+        parameter = :duty_rate
     )
    
+Calculate the duty rate for each commodity in each region. 
     
-Calculate the duty rate for each commodity in each region. The duty rate
-is defined as the ratio of `Duty` to `Import`.
+## Arguments
 
-## Required Arguments
-
-- `HH::HouseholdTable`: The regional data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:duty_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:duty_rate`).
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| commodity | :dr | state | year | :duty_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Duty`
+- `Import`
+
+## Calculation
+
+```math
+{\\rm Duty\\_Rate} = \\frac{\\rm Duty}{\\rm Import}
+```
 """
 function duty_rate(
         HH::HouseholdTable; 
@@ -379,28 +589,37 @@ end
         HH::HouseholdTable; 
         column::Symbol = :value, 
         output::Symbol = :value,
-        parameter = :marginal_labor_tax_rate,
-        minimal::Bool = false
+        parameter = :marginal_labor_tax_rate
     )
 
-Calculate the marginal labor tax rate for each household type in each region. The marginal labor tax rate
-is defined as the ratio of `Marginal_Labor_Tax` to `Labor_Endowment`.
+Calculate the marginal labor tax rate for each household type in each region. 
 
-## Required Arguments
+## Arguments
 
-- `HH::HouseholdTable`: The household data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:marginal_labor_tax_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:marginal_labor_tax_rate`).
 
 ## Returns
 
-A `DataFrame` with the marginal labor tax rate for each household type in each region.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :ltr | household | state | year | :marginal_labor_tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Marginal_Labor_Tax`
+- `Labor_Endowment`
 
 ## Calculation
 
@@ -448,24 +667,34 @@ end
         parameter = :fica_tax_rate,
     )
 
-Calculate the FICA tax rate for each household type in each region. The FICA tax rate
-is defined as the ratio of `FICA_Tax` to `Labor_Endowment`.
+Calculate the FICA tax rate for each household type in each region.
 
-## Required Arguments
+## Arguments
 
-- `HH::HouseholdTable`: The household data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:fica_tax_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:fica_tax_rate`).
 
 ## Returns
 
-A `DataFrame` with the FICA tax rate for each household type in each region.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :ftr | household | state | year | :fica_tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `FICA_Tax`
+- `Labor_Endowment`
 
 ## Calculation
 
@@ -506,24 +735,34 @@ end
         parameter = :average_labor_tax_rate,
     )
 
-Calculate the average labor tax rate for each household type in each region. The average labor tax rate
-is defined as the ratio of `Average_Labor_Tax` to `Labor_Endowment`.
+Calculate the average labor tax rate for each household type in each region. 
 
-## Required Arguments
+## Arguments
 
-- `HH::HouseholdTable`: The household data.
+- `HH::HouseholdTable`: The household table containing household data.
 
 ## Keyword Arguments
 
-- `column::Symbol = :value`: The column to be used for the calculation.
-- `output::Symbol = :value`: The name of the output column.
-- `parameter::Symbol = `:average_labor_tax_rate`: The name of the parameter column.
-- `minimal::Bool = false`: Whether to return a minimal output. If true, only the 
-    essential columns are returned: [:col, :region, :year, :parameter, output].
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:average_labor_tax_rate`).
 
 ## Returns
 
-A `DataFrame` with the average labor tax rate for each household type in each region.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :altr | household | state | year | :average_labor_tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Average_Labor_Tax`
+- `Labor_Endowment`
 
 ## Calculation
 
@@ -580,7 +819,17 @@ of the leisure supply, based on a labor supply income elasticity, which is set t
 
 ## Returns
 
-A `DataFrame` with the calculated leisure demand for each region and year.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :ld | household | state | year | :leisure_demand | value |
+
+Non-symbol values are sets.
+
+## Aggregate Parameters
+
+- [`WiNDCHousehold.labor_supply`](@ref)
 
 ## Calculation
 
@@ -634,7 +883,20 @@ is defined as the ratio of `Capital_Tax` to `Capital_Demand`.
 
 ## Returns
 
-A `DataFrame` with the capital tax rate for each household type in each region.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :ktr | household | state | year | :capital_tax_rate | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Capital_Tax`
+- `Capital_Demand`
 
 ## Calculation
 
@@ -690,7 +952,19 @@ Aggregate the transfer payments for each household type in each region.
 
 ## Returns
 
-A `DataFrame` with the aggregated transfer payments for each household type in each region.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :tt | household | state | year | :total_transfers | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Transfer_Payment`
 
 ## Calculation
 
@@ -741,7 +1015,26 @@ Calculate the government deficit for each year.
 
 ## Returns
 
-A `DataFrame` with the government deficit for each year.
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :gd | :gd | :gd | year | :government_deficit | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Government_Final_Demand`
+- `Transfer_Payment`
+- `Average_Labor_Tax`
+- `FICA_Tax`
+- `Capital_Tax`
+- `Output_Tax`
+- `Tax`
+- `Duty`
 
 ## Calculation
 
@@ -781,7 +1074,63 @@ function government_deficit(
     return df
 end
 
+"""
+    leisure_consumption_elasticity(
+        HH::HouseholdTable;
+        column::Symbol = :value,
+        output::Symbol = :value,
+        parameter::Symbol = :leisure_consumption_elasticity,
+    )
 
+Calculate the leisure consumption elasticity for households.
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household data.
+
+## Keyword Arguments
+
+- `column::Symbol`: The column to aggregate (default is `:value`).
+- `output::Symbol`: The name of the output column (default is `:value`).
+- `parameter::Symbol`: The parameter to assign to the output (default is `:leisure_consumption_elasticity`).   
+
+## Returns
+
+A `DataFrame` with the following structure:
+
+| row | col | region | year | parameter     | value |
+|-----|-----|--------|------|---------------|-------|
+| :els | household | state | year | :leisure_consumption_elasticity | value |
+
+Non-symbol values are sets.
+
+## Parameters
+
+These values are extracted from the HouseholdTable
+
+- `Personal_Consumption`
+
+## Aggregate Parameters
+
+- [`WiNDCHousehold.leisure_demand`](@ref)
+- [`WiNDCHousehold.labor_supply`](@ref)
+
+## Calculation
+
+Leisure consumption elasticity is calculated as:
+
+```math
+{\\rm Leisure\\_Consumption\\_Elasticity} = \\epsilon \\cdot \\frac{(PCE + LD)}{PCE} \\cdot \\frac{LS}{LD}
+```
+
+where 
+
+- \\( \\epsilon \\) is the leisure income elasticity (0.2),
+- `PCE` is Personal Consumption Expenditure
+- `LD` is Leisure Demand
+- `LS` is Labor Supply
+```
+"""
 function leisure_consumption_elasticity(
         HH::HouseholdTable;
         column::Symbol = :value,

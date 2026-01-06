@@ -3,9 +3,6 @@
 
 Pull the raw ACS commuting flow data directly from the Census website for a given year.
 
-Return a DataFrame with the commuting flow data for the specified year, enriched 
-with income data from the CPS.
-
 ## Arguments
 
 - `year::Int`: The year of the ACS data to load.
@@ -14,6 +11,19 @@ with income data from the CPS.
 ## Optional Arguments
 
 - `output_path::String`: The path to save the downloaded ACS data. Default is a temporary directory.
+
+## Returns
+
+Return a DataFrame with the commuting flow data for the specified year, enriched 
+with income data from the CPS.
+
+## Data Source
+
+The ACS commuting flow data is downloaded from the Census website:
+
+```
+https://www2.census.gov/programs-surveys/demo/tables/metro-micro/{year}/commuting-flows-{year}/table1.xlsx
+```
 """
 function load_acs_data_api(
     year::Int,
