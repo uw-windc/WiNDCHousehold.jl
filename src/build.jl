@@ -159,7 +159,6 @@ The disaggregation is performed through the following steps:
 
 1. [`WiNDCHousehold.initialize_table`](@ref)
 2. [`WiNDCHousehold.adjust_capital_demand`](@ref)
-3. [`WiNDCHousehold.build_transfer_payments`](@ref)
 """
 function build_household_table(
         state_table::State,
@@ -168,7 +167,7 @@ function build_household_table(
 
     HH = initialize_table(state_table)
     HH = adjust_capital_demand(HH, state_table, raw_data)
-    HH = build_transfer_payments(HH, state_table, raw_data)
+    #HH = build_transfer_payments(HH, state_table, raw_data)
 
     M1 = calibration_model_1(HH, state_table, raw_data)
     M2 = calibration_model_2(HH, state_table, raw_data, M1)
@@ -176,8 +175,12 @@ function build_household_table(
     HH = WiNDCHousehold.create_personal_consumption(HH, state_table, raw_data, M2)
     HH = WiNDCHousehold.create_labor_endowment(HH, state_table, raw_data, M1)
     HH = WiNDCHousehold.create_household_interest(HH, state_table, raw_data, M1)
-    HH = WiNDCHousehold.update_household_transfers(HH, state_table, raw_data, M1)
+    HH = WiNDCHousehold.create_household_transfers(HH, state_table, raw_data, M1)
+
+
     HH = WiNDCHousehold.create_taxes(HH, state_table, raw_data)
+
+    
     HH = WiNDCHousehold.create_savings(HH, state_table, raw_data, M1)
 
     return HH
@@ -259,206 +262,6 @@ function adjust_capital_demand(
     return HouseholdTable(df, S, E; regularity_check=true)
 end
 
-"""
-    transfer_weights(raw_data::RawHouseholdData)
-
-Compute transfer weights based on the CPS vs NIPA comparison in `raw_data`.
-
-Transfer weight is defined as the ratio of NIPA transfer income to CPS transfer income
-for each transfer category. If the CPS income for a category is zero, the weight
-from either the Meyer or Rothbaum study is used as a fallback.
-
-## Transfer Categories
-
-| Category | Source |
-|----------|--------|
-|government benefits: unemployment insurance | hucval |
-|government benefits: social security | hssval |
-|government benefits: social security | hssival |
-|government benefits: social security | hdisval |
-|government benefits: veterans' benefits | hvetval |
-
-## Meyer and Rothbaum Weights
-
-| Source | Literature | Value |
-|--------|--------------|-----------------|
-| hucval | meyer |  1/0.679 | 
-| hssval | meyer |  1/0.899 | 
-| hssival | meyer |  1/0.759 | 
-| hdisval | meyer |  1/0.819 | 
-| hvetval | rothbaum |  1/0.679 | 
-| hwcval | meyer |  1 / 0.527 | 
-| hpawval | meyer |  1 / 0.487 | 
-| hsurval | meyer |  1 / 0.908 | 
-| hedval | rothbaum |  1 / 0.804 | 
-| hcspval | rothbaum |  1 / 0.804 | 
-| hfinval | meyer |  1 / 0.539 | 
-
-!!! note ""
-    The values are hard coded based on literature and may need to be updated as new studies emerge.
-    Also, the year is fixed at 2024 for these weights. Need to update for more years in the future.
-"""
-function transfer_weights(raw_data::RawHouseholdData)
-    cps_nipa = raw_data.nipa_cps
-
-    return innerjoin(
-        cps_nipa,
-    
-        DataFrame([
-            (category = "government benefits: unemployment insurance", source = "hucval"),
-            (category = "government benefits: social security", source = "hssval"),
-            (category = "government benefits: social security", source = "hssival"),
-            (category = "government benefits: social security", source = "hdisval"),
-            (category = "government benefits: veterans' benefits", source = "hvetval"),
-        ]),
-        on = :category,
-    ) |>
-    x -> transform(x,
-        [:nipa, :cps] => ByRow((n,c) -> n/c) => :value,
-        :source => ByRow(y -> "nipa") => :variable
-    ) |>
-    x -> select(x, :year, :source, :variable, :value) |>
-    x -> vcat(x,
-    
-        DataFrame([
-            (year = 2024, source = "hucval", variable = "meyer", value = 1/0.679),
-            (year = 2024, source = "hssval", variable = "meyer", value = 1/0.899),
-            (year = 2024, source = "hssival", variable = "meyer", value = 1/0.759),
-            (year = 2024, source = "hdisval", variable = "meyer", value = 1/0.819),
-            (year = 2024, source = "hvetval", variable = "rothbaum", value = 1/0.679),
-            (year = 2024, source = "hwcval", variable = "meyer", value = 1 / 0.527),
-            (year = 2024, source = "hpawval", variable = "meyer", value = 1 / 0.487),
-            (year = 2024, source = "hsurval", variable = "meyer", value = 1 / 0.908),
-            (year = 2024, source = "hedval", variable = "rothbaum", value = 1 / 0.804),
-            (year = 2024, source = "hcspval", variable = "rothbaum", value = 1 / 0.804),
-            (year = 2024, source = "hfinval", variable = "meyer", value = 1 / 0.539),
-        ])
-    ) |>
-    x -> unstack(x, :variable, :value) |>
-    x -> transform(x,
-        [:nipa, :meyer, :rothbaum] => ((n,m,r) -> coalesce.(n, coalesce.(m, r))) => :value
-    ) |>
-    x -> select(x, :year, :source, :value => :trn_weight)
-
-end
-
-"""
-    build_transfer_payments(
-        HH::HouseholdTable,
-        raw_data::RawHouseholdData,
-    )
-
-Add transfer payments to the `HouseholdTable` `HH` based on the data in `raw_data`.
-
-## Raw Data
-
-- [`WiNDCHousehold.transfer_weights`](@ref)
-- `raw_data.income` (CPS income data)
-- `raw_data.medicare` (Medicare and Medicaid data)
-- `raw_data.income_categories` (CPS income categories)
-
-## Sets Added
-
-- `Transfer_Payment` 
-    - Domain: `parameter`
-    - Description: "Transfer Payments"
-    - Elements: `transfer_payment`
-
-- `transfer_payments` 
-    - Domain: `row`
-    - Description: "Transfer Payments"
-    
-| Element | Description |
-|---------|-------------|
-| `hucval` | unemployment compensation |
-| `hwcval` | workers compensation |
-| `hssval` | social security |
-| `hssival` |supplemental security |
-| `hpawval` |public assistance or welfare |
-| `hvetval` |veterans benefits |
-| `hsurval` |survivors income |
-| `hdisval` |disability |
-| `hedval` | educational assistance |
-| `hcspval` |child support |
-| `hfinval` |financial assistance |
-| `medicare` |edicare |
-| `medicaid` |edicaid |
-| `other` | Other Income | 
-
-!!! note ""
-    The year for medicare and medicaid is fixed at 2024. Need to update for more 
-    years in the future.
-"""
-function build_transfer_payments(
-        HH::HouseholdTable,
-        state_table::State,
-        raw_data::RawHouseholdData,
-    )
-
-    trn_weight = WiNDCHousehold.transfer_weights(raw_data)
-    income_categories = raw_data.income_categories
-    medicare = raw_data.medicare 
-    cps = raw_data.income
-
-    household_transfers = cps |>
-            x -> innerjoin(x, income_categories, on = :source) |>
-            x -> subset(x, :windc => ByRow(==("transfer"))) |>
-            x -> outerjoin(
-                x,
-                trn_weight,
-                on = [:year, :source],
-            ) |>
-            x -> transform(x,
-                [:value, :trn_weight] => ByRow((v, w) -> v * w) => :value
-            ) |>
-            x -> select(x, :source => :row, :hh => :col, :state => :region, :year, :value) |>
-            x -> vcat(
-                x, 
-                medicare |>
-                    x -> subset(x, :year => ByRow(==(2024))) |>
-                    x -> rename(x, 
-                        :income => :col,
-                        :variable => :row,
-                        :state => :region,
-                    )
-            ) |>
-            x -> transform(x,
-                :row => ByRow(y -> :transfer_payment) => :parameter,
-                [:row, :col] .=> ByRow(Symbol) .=> [:row, :col]
-            )
-
-    df = vcat(table(HH), household_transfers)
-    S = sets(HH) |>
-        x -> vcat(x,
-            DataFrame([
-                (name = :transfer_payment, description = "Transfer Payments", domain = :row),
-                (name = :Transfer_Payment, description = "Transfer Payments", domain = :parameter),
-            ])
-        )
-    E = elements(HH) |>
-        x -> vcat(x,
-            DataFrame([
-                (name = :transfer_payment, description = "Transfer Payments", set = :Transfer_Payment),
-                (name = :hucval,   set = :transfer_payment, description = "unemployment compensation"),
-                (name = :hwcval,   set = :transfer_payment, description = "workers compensation"),
-                (name = :hssval,   set = :transfer_payment, description = "social security"),
-                (name = :hssival,  set = :transfer_payment, description = "supplemental security"),
-                (name = :hpawval,  set = :transfer_payment, description = "public assistance or welfare"),
-                (name = :hvetval,  set = :transfer_payment, description = "veterans benefits"),
-                (name = :hsurval,  set = :transfer_payment, description = "survivors income"),
-                (name = :hdisval,  set = :transfer_payment, description = "disability"),
-                (name = :hedval,   set = :transfer_payment, description = "educational assistance"),
-                (name = :hcspval,  set = :transfer_payment, description = "child support"),
-                (name = :hfinval,  set = :transfer_payment, description = "financial assistance"),
-                (name = :medicare, set = :transfer_payment, description = "medicare"),
-                (name = :medicaid, set = :transfer_payment, description = "medicaid"),
-                (name = :other,    set = :transfer_payment, description = "Other Income"),
-            ])
-        )
-
-    return HouseholdTable(df, S, E; regularity_check=true)
-
-end
 
 
 """
@@ -1076,7 +879,7 @@ function other_income(
     term1 = WiNDCHousehold.adjusted_consumption(HH, state_table, raw_data)
     term2 = WiNDCHousehold.adjusted_wages(HH, state_table, raw_data)
 
-    term3 = table(HH, :Transfer_Payment) |>
+    term3 = initial_transfer_payments(HH, state_table, raw_data) |>
         x -> groupby(x, [:region, :year, :col]) |>
         x -> combine(x, :value => sum => :adj_trans) |>
         x -> transform(x, :col => ByRow(String) => :col) |>
@@ -1246,8 +1049,58 @@ function create_household_interest(
     return HH
 end
 
+"""
+    create_household_transfers(
+        HH::HouseholdTable,
+        raw_data::RawHouseholdData,
+    )
 
-function update_household_transfers(
+!!! note ""
+    This must be revised!
+
+
+Add transfer payments to the `HouseholdTable` `HH` based on the data in `raw_data`.
+
+## Raw Data
+
+- [`WiNDCHousehold.transfer_weights`](@ref)
+- `raw_data.income` (CPS income data)
+- `raw_data.medicare` (Medicare and Medicaid data)
+- `raw_data.income_categories` (CPS income categories)
+
+## Sets Added
+
+- `Transfer_Payment` 
+    - Domain: `parameter`
+    - Description: "Transfer Payments"
+    - Elements: `transfer_payment`
+
+- `transfer_payments` 
+    - Domain: `row`
+    - Description: "Transfer Payments"
+    
+| Element | Description |
+|---------|-------------|
+| `hucval` | unemployment compensation |
+| `hwcval` | workers compensation |
+| `hssval` | social security |
+| `hssival` |supplemental security |
+| `hpawval` |public assistance or welfare |
+| `hvetval` |veterans benefits |
+| `hsurval` |survivors income |
+| `hdisval` |disability |
+| `hedval` | educational assistance |
+| `hcspval` |child support |
+| `hfinval` |financial assistance |
+| `medicare` |edicare |
+| `medicaid` |edicaid |
+| `other` | Other Income | 
+
+!!! note ""
+    The year for medicare and medicaid is fixed at 2024. Need to update for more 
+    years in the future.
+"""
+function create_household_transfers(
         HH::HouseholdTable,
         state_table::WiNDCRegional.State,
         raw_data::RawHouseholdData,
@@ -1257,7 +1110,11 @@ function update_household_transfers(
     regions = elements(HH, :state) |> x -> x[:, :name]
     households = elements(HH, :household) |> x -> x[:, :name]
 
-    new_transfers = table(HH, :Transfer_Payment) |>
+
+
+
+
+    new_transfers = initial_transfer_payments(HH, state_table, raw_data) |>
         x -> groupby(x, [:region, :col, :year]) |>
         x -> combine(x,
             [:row, :parameter] .=> identity .=> [:row, :parameter],
@@ -1279,7 +1136,37 @@ function update_household_transfers(
         x -> subset(x, :parameter => ByRow(!=( :transfer_payment ))) |>
         x -> vcat(x, new_transfers)
 
-    HH = HouseholdTable(df, sets(HH), elements(HH); regularity_check = true)
+
+
+    S = sets(HH) |>
+        x -> vcat(x,
+            DataFrame([
+                (name = :transfer_payment, description = "Transfer Payments", domain = :row),
+                (name = :Transfer_Payment, description = "Transfer Payments", domain = :parameter),
+            ])
+        )
+    E = elements(HH) |>
+        x -> vcat(x,
+            DataFrame([
+                (name = :transfer_payment, description = "Transfer Payments", set = :Transfer_Payment),
+                (name = :hucval,   set = :transfer_payment, description = "unemployment compensation"),
+                (name = :hwcval,   set = :transfer_payment, description = "workers compensation"),
+                (name = :hssval,   set = :transfer_payment, description = "social security"),
+                (name = :hssival,  set = :transfer_payment, description = "supplemental security"),
+                (name = :hpawval,  set = :transfer_payment, description = "public assistance or welfare"),
+                (name = :hvetval,  set = :transfer_payment, description = "veterans benefits"),
+                (name = :hsurval,  set = :transfer_payment, description = "survivors income"),
+                (name = :hdisval,  set = :transfer_payment, description = "disability"),
+                (name = :hedval,   set = :transfer_payment, description = "educational assistance"),
+                (name = :hcspval,  set = :transfer_payment, description = "child support"),
+                (name = :hfinval,  set = :transfer_payment, description = "financial assistance"),
+                (name = :medicare, set = :transfer_payment, description = "medicare"),
+                (name = :medicaid, set = :transfer_payment, description = "medicaid"),
+                (name = :other,    set = :transfer_payment, description = "Other Income"),
+            ])
+        )
+
+    HH = HouseholdTable(df, S, E; regularity_check = true)
     return HH
 
 end

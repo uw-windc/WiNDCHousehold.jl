@@ -34,6 +34,8 @@ module WiNDCHousehold
 
     include("data/cex_files.jl")
 
+    include("data/pre_calibration_data.jl")
+
     include("data/calibration_model_1.jl")
     include("data/calibration_model_2.jl")
 
