@@ -867,7 +867,7 @@ where:
 
 - `Adjusted Consumption` is obtained from [`WiNDCHousehold.adjusted_consumption`](@ref).
 - `Adjusted Wages` is obtained from [`WiNDCHousehold.adjusted_wages`](@ref).
-- `Average Transfer Payments` the average over households and states of the `Transfer_Payment` parameter in `HH`.
+- `Average Transfer Payments` the average over households and states of [`initial_transfer_payments`](@ref).
 - `Adjusted Capital Income` is obtained from [`WiNDCHousehold.adjusted_capital_income`](@ref).
 """
 function other_income(

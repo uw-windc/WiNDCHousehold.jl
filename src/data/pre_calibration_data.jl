@@ -1,4 +1,3 @@
-
 """
     transfer_weights(raw_data::RawHouseholdData)
 
@@ -7,6 +6,20 @@ Compute transfer weights based on the CPS vs NIPA comparison in `raw_data`.
 Transfer weight is defined as the ratio of NIPA transfer income to CPS transfer income
 for each transfer category. If the CPS income for a category is zero, the weight
 from either the Meyer or Rothbaum study is used as a fallback.
+
+Returns a DataFrame with the following columns:
+
+- `year`: The year of the data.
+- `source`: The CPS income source/category.
+- `trn_weight`: The computed transfer weight for the category.
+
+## Arguments
+
+- `raw_data::RawHouseholdData`: The raw household data containing CPS and NIPA income data.
+
+## Raw Input Data
+
+- `nipa_cps`: A DataFrame containing NIPA and CPS income data by category.
 
 ## Transfer Categories
 
@@ -37,6 +50,14 @@ from either the Meyer or Rothbaum study is used as a fallback.
 !!! note ""
     The values are hard coded based on literature and may need to be updated as new studies emerge.
     Also, the year is fixed at 2024 for these weights. Need to update for more years in the future.
+
+## Process
+
+1. Extract the transfer categories from the `cps_nipa`
+2. Compute the transfer weight as the ratio of NIPA to CPS income.
+3. Add Meyer and Rothbaum weights for categories where CPS income is zero, 
+    preference given to Meyer weights.
+
 """
 function transfer_weights(raw_data::RawHouseholdData)
     cps_nipa = raw_data.nipa_cps
@@ -85,31 +106,42 @@ end
 """
     initial_transfer_payments(
         HH::HouseholdTable,
+        state_table::State,
         raw_data::RawHouseholdData,
     )
 
-!!! note ""
-    This needs updating
+Generate initial transfer payments for households by applying transfer weights
+to CPS income and adding Medicare and Medicaid data.
 
-Add transfer payments to the `HouseholdTable` `HH` based on the data in `raw_data`.
+Returns a DataFrame with the following columns:
 
-## Raw Data
+- `row`: The transfer payment category.
+- `col`: The household identifier.
+- `region`: The state identifier.
+- `year`: The year of the data.
+- `parameter`: The parameter name, set to `:transfer_payment`.
+- `value`: The computed transfer payment value for the household.
+
+## Arguments
+
+- `HH::HouseholdTable`: The household table containing household information.
+- `state_table::State`: The state table containing state information.
+- `raw_data::RawHouseholdData`: The raw household data containing CPS income,
+  Medicare, Medicaid, and income categories.
+
+The first two arguments are included for consistency with other initial data functions,
+but are not directly used in this function.
+
+
+## Raw Input Data
 
 - [`WiNDCHousehold.transfer_weights`](@ref)
 - `raw_data.income` (CPS income data)
 - `raw_data.medicare` (Medicare and Medicaid data)
 - `raw_data.income_categories` (CPS income categories)
 
-## Sets Added
+## Transfer Payment Categories
 
-- `Transfer_Payment` 
-    - Domain: `parameter`
-    - Description: "Transfer Payments"
-    - Elements: `transfer_payment`
-
-- `transfer_payments` 
-    - Domain: `row`
-    - Description: "Transfer Payments"
     
 | Element | Description |
 |---------|-------------|
@@ -126,9 +158,14 @@ Add transfer payments to the `HouseholdTable` `HH` based on the data in `raw_dat
 | `hfinval` |financial assistance |
 | `medicare` |edicare |
 | `medicaid` |edicaid |
-| `other` | Other Income | 
 
-!!! note ""
+## Process
+
+1. Subset the CPS income data to include only transfer payment categories.
+2. Join with transfer weights and multiply CPS income by the corresponding weight.
+3. Add Medicare and Medicaid data for the year 2024.
+
+!!! note "Data fixed at 2024"
     The year for medicare and medicaid is fixed at 2024. Need to update for more 
     years in the future.
 """
@@ -145,7 +182,7 @@ function initial_transfer_payments(
 
     household_transfers = cps |>
             x -> innerjoin(x, income_categories, on = :source) |>
-            x -> subset(x, :windc => ByRow(==("transfer"))) |>
+            x -> subset(x, :windc => ByRow(==("transfer"))) |> # Only used to get the transfer categories. Could we do better?
             x -> outerjoin(
                 x,
                 trn_weight,
