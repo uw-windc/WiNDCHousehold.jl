@@ -55,7 +55,7 @@ Returns a DataFrame with the following columns:
 
 1. Extract the transfer categories from the `cps_nipa`
 2. Compute the transfer weight as the ratio of NIPA to CPS income.
-3. Add Meyer and Rothbaum weights for categories where CPS income is zero, 
+3. Add Meyer and Rothbaum weights for categories where NIPA is zero, 
     preference given to Meyer weights.
 
 """
@@ -115,7 +115,7 @@ to CPS income and adding Medicare and Medicaid data.
 
 Returns a DataFrame with the following columns:
 
-- `row`: The transfer payment category.
+- `row`: The transfer payment categories (listed below).
 - `col`: The household identifier.
 - `region`: The state identifier.
 - `year`: The year of the data.
