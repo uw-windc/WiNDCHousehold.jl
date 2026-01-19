@@ -45,8 +45,6 @@ A NamedTuple with the following DataFrames:
 """
 function load_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips())
 
-    save_data = get(info["metadata"], "save_data", true)
-
     cps_info = info["data"]["cps"]
     cps_info["census_api_key"] = get(info["metadata"],"census_api_key",nothing)
     bounds = cps_info["income_bounds"]
@@ -55,18 +53,7 @@ function load_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips()
     path = get(cps_info, "path", nothing)
     years = get(cps_info, "years", [2024])
 
-    input_data = retrieve_cps_data(info)
-
-    for (year, df) in input_data
-        input_data[year] = df |>
-            x -> transform(x, 
-                :htotval =>  ByRow(y -> household_labels(y; bounds = bounds)) => :hh,
-                :gestfips => ByRow(y -> year) => :year,
-            ) |>
-            x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
-            x -> select(x, Not(:gestfips))
-        
-    end
+    input_data = retrieve_cps_data(info; state_fips = state_fips)
 
     income = cps_income(input_data)
     numhh = cps_numhh(input_data)
@@ -150,8 +137,8 @@ function get_cps_data(year, cps_rw, variables, api_key; bounds = Dict("hh1" => 2
 end
 
 """
-    retrieve_cps_data(year::Int, info::Dict)
-    retrieve_cps_data(info::Dict)
+    retrieve_cps_data(year::Int, info::Dict; state_fips = WiNDCHousehold.load_state_fips()))
+    retrieve_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips()))
 
 Retrieve CPS data from the Census API based on the provided configuration. The data 
 is retrieved using [`WiNDCHousehold.get_cps_data`](@ref) for each specified year and combined into a single DataFrame.
@@ -171,7 +158,7 @@ If `year` is provided, returns a single DataFrame for that year.
 If `year` is not provided, returns a dictionary mapping each year to its 
 corresponding CPS DataFrame. Each DataFrame contains the columns given by the input variables.
 """
-function retrieve_cps_data(year::Int, info::Dict)
+function retrieve_cps_data(year::Int, info::Dict; state_fips = WiNDCHousehold.load_state_fips())
     save_data = get(info["metadata"], "save_data", true)
 
     cps_info = info["data"]["cps"]
@@ -203,18 +190,25 @@ function retrieve_cps_data(year::Int, info::Dict)
         end
     end
 
-
+    out = out |>
+        x -> transform(x, 
+            :htotval =>  ByRow(y -> household_labels(y; bounds = bounds)) => :hh,
+            :gestfips => ByRow(y -> year) => :year,
+        ) |>
+        x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
+        x -> select(x, Not(:gestfips))
 
     return out
 end
 
-function retrieve_cps_data(info::Dict)
+
+function retrieve_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips())
     cps_info = info["data"]["cps"]
     years = get(cps_info, "years", [2024])
     
     out = Dict()
     for year in years
-        out[year] = retrieve_cps_data(year, info)
+        out[year] = retrieve_cps_data(year, info; state_fips = state_fips)
     end
     return out
 end
@@ -258,12 +252,13 @@ end
 
 """
     cps_income(cps_raw_data::Dict)
+    cps_income(cps_raw_data::Dict)
 
 Compute total CPS income by household type, state, year, and source variable.
 
 ## Arguments
 
-- `cps_raw_data::Dict`: Generated dataset within [`load_cps_data`](@ref).
+- `cps_raw_data::Dict`: Output from [`retrieve_cps_data`](@ref).
 
 ## Returns
 
@@ -278,6 +273,11 @@ Compute total CPS income by household type, state, year, and source variable.
 function cps_income(cps_raw_data::Dict)
     return cps_raw_data |>
         data -> vcat([stack(df, Not(:hh, :year, :state, :marsupwt), variable_name = :source, value_name = :value) for (year, df) in data]...) |>
+        x -> cps_income(x)
+end
+
+function cps_income(cps_raw_data::DataFrame)
+    return cps_raw_data |>
         x -> transform(x, 
             [:marsupwt, :value] => ByRow(*) => :value
         ) |>
@@ -285,15 +285,15 @@ function cps_income(cps_raw_data::Dict)
         x -> combine(x, :value => (y -> sum(y)/1e9) => :value)
 end
 
-
 """
     cps_numhh(cps_raw_data::Dict)
+    cps_numhh(cps_raw_data::DataFrame)
 
 Compute the number of households (in millions) by household type, state, and year from CPS raw data.
 
 ## Arguments
 
-- `cps_raw_data::Dict`: Generated dataset within [`load_cps_data`](@ref).
+- `cps_raw_data::Dict`: Output from [`retrieve_cps_data`](@ref).
 
 ## Returns
 
@@ -306,7 +306,11 @@ Compute the number of households (in millions) by household type, state, and yea
 function cps_numhh(cps_raw_data::Dict)
     return cps_raw_data |>
         data -> vcat([select(df, :hh, :year, :state, :marsupwt) for (year, df) in data]...) |>
+        x -> cps_numhh(x)
+end
+
+function cps_numhh(cps_raw_data::DataFrame)
+    return cps_raw_data |>
         x -> groupby(x, [:hh, :state, :year]) |>
         x -> combine(x, :marsupwt => (y -> sum(y)*1e-6) => :numhh)
 end
-
