@@ -8,10 +8,8 @@ from the Census API or load it from a local CSV file.
 
 ## Arguments
 
-- `cps_info::Dict`: A dictionary containing CPS configuration, including:
-    - `api::Bool`: Whether to load data from the API (`true`) or from a local file (`false`).
-    - `path::String`: The file path to load/save the CPS data, defaults to an empty string which won't save the data.
-    - Other keys required by [`WiNDCHousehold.retrieve_cps_data`](@ref) if `api` is `true`.
+- `info::Dict`: The household configuration dictionary, obtained from 
+[`WiNDCHousehold.load_household_yaml`](@ref).
 
 ## Optional Arguments
 
@@ -24,7 +22,11 @@ A NamedTuple with the following DataFrames:
 - `income::DataFrame`: Output from 
 - `numhh::DataFrame`: A DataFrame containing the number of households by household type
 """
-function load_cps_data(cps_info::Dict; state_fips = WiNDCHousehold.load_state_fips())
+function load_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips())
+    cps_info = info["data"]["cps"]
+    cps_info["census_api_key"] = get(info["metadata"],"census_api_key",nothing)
+    bounds = cps_info["income_bounds"]
+
     api = get(cps_info, "api", false)
     path = get(cps_info, "path", "")
     years = get(cps_info, "years", [2024])

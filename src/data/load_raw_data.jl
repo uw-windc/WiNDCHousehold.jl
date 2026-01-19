@@ -68,7 +68,7 @@ function household_raw_data(info::Dict)
     state_fips = WiNDCHousehold.load_state_fips()
     income_categories = WiNDCHousehold.load_cps_income_categories()
 
-    cps = WiNDCHousehold.load_cps_data_api(census_api_key; years=[2024])
+    income, numhh = WiNDCHousehold.load_cps_data_api(census_api_key; years=[2024])
     nipa = load_nipa_data_api([2024], bea_api_key)
 
 
@@ -93,7 +93,8 @@ function household_raw_data(info::Dict)
 
     HH_Raw_Data = WiNDCHousehold.RawHouseholdData(
         state_table,
-        cps,
+        income,
+        numhh,
         nipa,
         acs,
         medicare,
