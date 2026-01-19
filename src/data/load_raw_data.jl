@@ -1,3 +1,12 @@
+"""
+    load_household_yaml(path::String)
+    load_household_yaml()
+
+Load the household YAML configuration file from the specified path.
+
+!!!note ""
+    This is a placeholder documentation string. More details to be added later.
+"""
 function load_household_yaml(path::String)
     path = joinpath(path)
     return YAML.load_file(path)
@@ -40,7 +49,7 @@ This currently returns a tuple containing:
 
 ## Raw Data Loaded
 
-- [`WiNDCHousehold.load_cps_data_api`](@ref)
+- [`WiNDCHousehold.load_cps_data`](@ref)
 - [`WiNDCHousehold.load_nipa_data_api`](@ref)
 - [`WiNDCHousehold.load_acs_data_api`](@ref)
 - [`WiNDCHousehold.load_medicare_data_api`](@ref)
