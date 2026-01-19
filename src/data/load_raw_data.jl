@@ -72,7 +72,7 @@ function household_raw_data(info::Dict)
     nipa = load_nipa_data_api([2024], bea_api_key)
 
 
-    acs = WiNDCHousehold.load_acs_data_api(2020, census_api_key)
+    acs = WiNDCHousehold.load_acs_data_api(info)#2020, census_api_key)
 
     medicare_min_year = info["data"]["medicare"]["min_year"]
     medicare_max_year = info["data"]["medicare"]["max_year"]
