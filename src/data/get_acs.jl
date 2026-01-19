@@ -26,10 +26,17 @@ https://www2.census.gov/programs-surveys/demo/tables/metro-micro/{year}/commutin
 ```
 """
 function load_acs_data_api(
-    year::Int,
-    census_api_key;
+    info::Dict;
     output_path::String = tempname(),
 )
+
+    acs_info = info["data"]["acs"]
+
+    year = 2020 # Currently hard coded, need to update to be dynamic
+    #year = get(acs_info, "years", [2020])
+
+
+
     output_path = isabspath(output_path) ? output_path : joinpath(pwd(), output_path)
 
     if !isdir(output_path)
@@ -40,12 +47,13 @@ function load_acs_data_api(
 
     file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
 
-    cps_2020 = WiNDCHousehold.load_cps_data_api(census_api_key; years=[2020])
+    cps_data = Dict()
+    cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
 
     income_2020 = leftjoin(
-        cps_2020[:income] |>
+        cps_income(cps_data) |>
             x -> subset(x, :source => ByRow(==("hwsval"))),
-        cps_2020[:numhh],
+        cps_numhh(cps_data),
         on = [:year, :state, :hh]
     ) |>
     dropmissing |>
