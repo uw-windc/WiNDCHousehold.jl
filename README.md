@@ -37,16 +37,57 @@ metadata:
   description: Configuration file for household data sources
   census_api_key: census_api_key_here
   bea_api_key: bea_api_key_here
+  save_data: true
   maps:
     state_map:
     windc_naics_map:
 data:
   state_table:
-    path: path/to/state_data_2024.jld2
+    path: "state_data_2024.jld2"
   cps:
-    api: true
+    api: false
+    path: 'path/to/cps_directory'
     years:
       - 2024
+      #- 2023
+      #- 2005
+    cps_identifiers:
+      - gestfips  # state fips
+      - a_exprrp  # expanded relationship code
+      - h_hhtype  # type of household interview
+      - pppos     # person identifier
+      - marsupwt  # asec supplement final weight
+    cps_variables:
+      - hwsval    # "wages and salaries"
+      - hseval    # "self-employment (nonfarm
+      - hfrval    # "self-employment farm"
+      - hucval    # "unemployment compensation
+      - hwcval    # "workers compensation"
+      - hssval    # "social security"
+      - hssival   # "supplemental security"
+      - hpawval   # "public assistance or wel
+      - hvetval   # "veterans benefits"
+      - hsurval   # "survivors income"
+      - hdisval   # "disability"
+      - hintval   # "interest"
+      - hdivval   # "dividends"
+      - hrntval   # "rents"
+      - hedval    # "educational assistance"
+      - hcspval   # "child support"
+      - hfinval   # "financial assistance"
+      - hoival    # "other income"
+      - htotval   # "total household income
+    cps_post2019_variables:
+      - hdstval   # "retirement distributions"
+      - hpenval   # "pensions and annuities"
+      - hannval   # "annuities"
+    cps_pre2019_variables:
+      - hretval   # "retirement income"
+    income_bounds:
+      hh1: 25000
+      hh2: 50000
+      hh3: 75000
+      hh4: 150000
   nipa:
     api: true
     years: 
@@ -62,16 +103,16 @@ data:
     max_year: 2024
   capital_tax_rates:
     api: false
-    path: path/to/capital_tax_rates.csv
+    path: 'path/to/capital_tax_rates.csv'
   labor_tax_rates:
     api: false
-    path: path/to/labor_tax_rates.csv
+    path: 'path/to/labor_tax_rates.csv'
   income_elasticities:
     api: false
-    path: path/to/national_income_elasticities_CEX_2013_2017.csv
+    path: 'path/to/cex_income_elasticities.csv'
   windc_pce_share:
     api: false
-    path: path/to/windc_pce_map.csv
+    path: 'path/to/pce_shares.csv'
 magic_numbers:
   corporate_rate: .186
   cbo_wealth_distribution:
@@ -86,6 +127,7 @@ magic_numbers:
     hh3: 47664
     hh4: 64910
     hh5: 112221
+  
 ```
 
 
