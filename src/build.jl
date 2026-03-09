@@ -256,6 +256,7 @@ function adjust_capital_demand(
         DataFrame([
             (name = :cap_tax, description = "Capital Tax", set = :capital_tax),
             (name = :capital_tax, description = "Capital Tax", set = :Capital_Tax),
+            (name = :capital_tax, description = "Capital Tax", set = :Use),
         ])
     )
 
