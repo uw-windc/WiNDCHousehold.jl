@@ -1,6 +1,6 @@
 name = "WiNDCHousehold"
 uuid = "cd12a3d6-ca9d-404c-9a04-cb90ee163205"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mitch Phillipson <mitch.phillipson@gmail.com>"]
 
 [deps]
