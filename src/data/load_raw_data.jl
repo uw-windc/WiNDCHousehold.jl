@@ -68,17 +68,17 @@ function household_raw_data(info::Dict)
 
     bea_api_key = info["metadata"]["bea_api_key"]
     census_api_key = info["metadata"]["census_api_key"]
-
-
+    years = info["metadata"]["years"]
 
     @load info["data"]["state_table"]["path"] state_table
 
+    
 
     state_fips = WiNDCHousehold.load_state_fips()
     income_categories = WiNDCHousehold.load_cps_income_categories()
 
     income, numhh = load_cps_data(info)
-    nipa = load_nipa_data_api([2024], bea_api_key)
+    nipa = load_nipa_data_api(years, bea_api_key)
 
 
     acs = WiNDCHousehold.load_acs_data_api(info)#2020, census_api_key)
@@ -109,6 +109,7 @@ function household_raw_data(info::Dict)
 
     HH_Raw_Data = WiNDCHousehold.RawHouseholdData(
         state_table,
+        years,
         income,
         numhh,
         nipa,

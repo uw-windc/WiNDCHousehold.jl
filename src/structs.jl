@@ -62,6 +62,7 @@ A container for all raw data used in WiNDCHousehold processing.
 """
 struct RawHouseholdData
     state_fips::DataFrame
+    years::Vector{Int}
     income_categories::DataFrame
     state_abbreviations::DataFrame
     income::DataFrame                           # cps[:income]
@@ -81,6 +82,7 @@ struct RawHouseholdData
 
     function RawHouseholdData(
         state_table::WiNDCRegional.State,
+        years::Vector{Int},
         income::DataFrame,
         numhh::DataFrame,
         nipa::DataFrame,
@@ -132,6 +134,7 @@ struct RawHouseholdData
 
         return new(
             state_fips,
+            years,
             income_categories,
             state_abbreviations,
             income,
