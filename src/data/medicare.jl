@@ -55,7 +55,7 @@ function fetch_zip_data(
     close(r)
     rm(X)
 
-    return joinpath.(Ref(output_path),extracted_files)
+    return (path = output_path, files = extracted_files)
 end
 
 """
@@ -110,27 +110,25 @@ function load_medicare_data_api(
     url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
     output_path::String = tempname(),
     years::UnitRange{Int} = 2009:2024,
-    state_fips::DataFrame = load_state_fips()
-)
-    
-    data = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path=output_path)
-
+    state_fips::DataFrame = load_state_fips(),
     files_to_load = Dict(
         :medicare => "MEDICARE_AGGREGATE20.CSV",
-        #"MEDICARE_ENROLLMENT20.CSV"
-        #"MEDICARE_PER_ENROLLEE20.CSV"
         :medicaid => "MEDICAID_AGGREGATE20.CSV",
-        #"MEDICAID_ENROLLMENT20.CSV"
-        #"MEDICAID_PER_ENROLLEE20.CSV"
     )
+)
+    
+    path,files = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path=output_path)
 
-
+    #files_to_load[:medicare] in files || error("Medicare file not found in zip file")
+    #files_to_load[:medicaid] in files || error("Medicaid file not found in zip file")
+    
+    
     out = leftjoin(
         clean_aggregate_medi_data(
-            CSV.read(joinpath("medicare_data",files_to_load[:medicare]), DataFrame)
+            CSV.read(joinpath(path,files_to_load[:medicare]), DataFrame)
         ) |> x -> rename(x, :value => :medicare),
         clean_aggregate_medi_data(
-            CSV.read(joinpath("medicare_data",files_to_load[:medicaid]), DataFrame)
+            CSV.read(joinpath(path,files_to_load[:medicaid]), DataFrame)
         ) |> x -> rename(x, :value => :medicaid),
         on=[:state, :year]
     ) |>
