@@ -1,6 +1,6 @@
 name = "WiNDCHousehold"
 uuid = "cd12a3d6-ca9d-404c-9a04-cb90ee163205"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Mitch Phillipson <mitch.phillipson@gmail.com>"]
 
 [deps]
@@ -33,8 +33,8 @@ JSON = "1.3.0"
 JuMP = "1.29.3"
 MPSGE = "0.6.4"
 WiNDCContainer = "0.3.0"
-WiNDCNational = "0.3.2, 0.4"
-WiNDCRegional = "0.0.1"
+WiNDCNational = "0.4.0"
+WiNDCRegional = "0.1.1"
 XLSX = "0.10.4"
 YAML = "0.4.16"
 ZipFile = "0.10.1"

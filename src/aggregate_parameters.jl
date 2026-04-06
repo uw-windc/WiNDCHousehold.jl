@@ -914,7 +914,7 @@ function capital_tax_rate(
     )
 
     df = innerjoin(
-        table(HH, :Capital_Demand) |> 
+        table(HH, :Capital_Demand, normalize=:Use) |> 
             x -> groupby(x, [:col, :region, :year]) |>
             x -> combine(x, column => sum => :ce),
         table(HH, :Capital_Tax; column = column, normalize= :Use),

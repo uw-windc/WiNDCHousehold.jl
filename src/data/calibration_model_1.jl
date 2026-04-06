@@ -163,7 +163,7 @@ function calibration_model_1(HH::HouseholdTable, state_table::State, HH_Raw_Data
 
 
 
-    table(HH, :Transfer_Payment) |>
+    initial_transfer_payments(HH, state_table, HH_Raw_Data) |>
         x -> groupby(x, [:region, :col]) |>
         x -> combine(x,  
             :value => sum => :value

@@ -1,3 +1,12 @@
+"""
+    load_household_yaml(path::String)
+    load_household_yaml()
+
+Load the household YAML configuration file from the specified path.
+
+!!!note ""
+    This is a placeholder documentation string. More details to be added later.
+"""
 function load_household_yaml(path::String)
     path = joinpath(path)
     return YAML.load_file(path)
@@ -40,7 +49,7 @@ This currently returns a tuple containing:
 
 ## Raw Data Loaded
 
-- [`WiNDCHousehold.load_cps_data_api`](@ref)
+- [`WiNDCHousehold.load_cps_data`](@ref)
 - [`WiNDCHousehold.load_nipa_data_api`](@ref)
 - [`WiNDCHousehold.load_acs_data_api`](@ref)
 - [`WiNDCHousehold.load_medicare_data_api`](@ref)
@@ -68,11 +77,11 @@ function household_raw_data(info::Dict)
     state_fips = WiNDCHousehold.load_state_fips()
     income_categories = WiNDCHousehold.load_cps_income_categories()
 
-    cps = WiNDCHousehold.load_cps_data_api(census_api_key; years=[2024])
+    income, numhh = load_cps_data(info)
     nipa = load_nipa_data_api([2024], bea_api_key)
 
 
-    acs = WiNDCHousehold.load_acs_data_api(2020, census_api_key)
+    acs = WiNDCHousehold.load_acs_data_api(info)#2020, census_api_key)
 
     medicare_min_year = info["data"]["medicare"]["min_year"]
     medicare_max_year = info["data"]["medicare"]["max_year"]
@@ -93,7 +102,8 @@ function household_raw_data(info::Dict)
 
     HH_Raw_Data = WiNDCHousehold.RawHouseholdData(
         state_table,
-        cps,
+        income,
+        numhh,
         nipa,
         acs,
         medicare,
