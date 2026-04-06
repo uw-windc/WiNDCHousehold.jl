@@ -77,7 +77,7 @@ function household_raw_data(info::Dict)
     state_fips = WiNDCHousehold.load_state_fips()
     income_categories = WiNDCHousehold.load_cps_income_categories()
 
-    income, numhh = load_cps_data(info)
+    income, numhh = load_cps_data(info, years)
     nipa = load_nipa_data_api(years, bea_api_key)
 
 
@@ -106,6 +106,14 @@ function household_raw_data(info::Dict)
     pce_share_path = info["data"]["windc_pce_share"]["path"]
     pce_share = WiNDCHousehold.load_pce_shares(pce_share_path)
 
+    df = table(state_table, :year => years)
+    S = sets(state_table)
+    E = elements(state_table) |>
+        x -> subset(x,
+            [:name, :set] => ByRow((n,s) -> s!=:year || n∈years)
+        )
+
+    state_table = WiNDCRegional.State(df, S, E)
 
     HH_Raw_Data = WiNDCHousehold.RawHouseholdData(
         state_table,
