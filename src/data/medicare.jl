@@ -55,7 +55,7 @@ function fetch_zip_data(
     close(r)
     rm(X)
 
-    return joinpath.(Ref(output_path),extracted_files)
+    return (path = output_path, files = extracted_files)
 end
 
 """
@@ -63,7 +63,7 @@ end
 
 Cleans Medicare or Medicaid aggregate data DataFrame.
 """
-function clean_aggregate_medi_data(df::DataFrame)
+function clean_aggregate_medi_data(df::DataFrame, variable::String)
     return df |>
         x -> subset(x, :Code => ByRow(==(1))) |>
         x -> select(x, Not(:Item, :Average_Annual_Percent_Growth, :Code, :Group, :Region_Number, :Region_Name)) |>
@@ -71,7 +71,8 @@ function clean_aggregate_medi_data(df::DataFrame)
         x -> rename(x, :State_Name => :state) |>
         x -> stack(x, Not(:state), variable_name=:year, value_name=:value) |>
         x -> transform(x,
-            :year => ByRow(y -> parse(Int, replace(y, "Y" => ""))) => :year
+            :year => ByRow(y -> parse(Int, replace(y, "Y" => ""))) => :year,
+            :value => ByRow(y -> Symbol(variable)) => :variable
         )
 end
 
@@ -99,6 +100,13 @@ Load Medicare and Medicaid data from the CMS website for the specified years.
     Default is 2009 to 2024.
 - `state_fips::DataFrame`: A DataFrame containing state FIPS codes. Default
     is the result of `load_state_fips()`.
+- `files_to_load::Dict`: A dictionary specifying the file names for Medicare and Medicaid data in the zip file. Default is:
+    ```
+    Dict(
+        "medicare" => "MEDICARE_AGGREGATE20.CSV",
+        "medicaid" => "MEDICAID_AGGREGATE20.CSV",
+    )
+    ```
 
 ## Returns
 
@@ -110,31 +118,29 @@ function load_medicare_data_api(
     url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
     output_path::String = tempname(),
     years::UnitRange{Int} = 2009:2024,
-    state_fips::DataFrame = load_state_fips()
+    state_fips::DataFrame = load_state_fips(),
+    files_to_load = Dict(
+        "medicare" => "MEDICARE_AGGREGATE20.CSV",
+        "medicaid" => "MEDICAID_AGGREGATE20.CSV",
+    )
 )
     
-    data = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path=output_path)
-
-    files_to_load = Dict(
-        :medicare => "MEDICARE_AGGREGATE20.CSV",
-        #"MEDICARE_ENROLLMENT20.CSV"
-        #"MEDICARE_PER_ENROLLEE20.CSV"
-        :medicaid => "MEDICAID_AGGREGATE20.CSV",
-        #"MEDICAID_ENROLLMENT20.CSV"
-        #"MEDICAID_PER_ENROLLEE20.CSV"
-    )
+    path,files = WiNDCHousehold.fetch_zip_data(url, y->endswith(y, ".CSV"); output_path=output_path)
 
 
-    out = leftjoin(
+    for file in values(files_to_load)
+         if !(file in files)
+            error("Required file $file not found in zip file")
+        end
+    end
+
+    out = vcat([
         clean_aggregate_medi_data(
-            CSV.read(joinpath("medicare_data",files_to_load[:medicare]), DataFrame)
-        ) |> x -> rename(x, :value => :medicare),
-        clean_aggregate_medi_data(
-            CSV.read(joinpath("medicare_data",files_to_load[:medicaid]), DataFrame)
-        ) |> x -> rename(x, :value => :medicaid),
-        on=[:state, :year]
-    ) |>
-    x -> stack(x, [:medicare, :medicaid])
+            CSV.read(joinpath(path,file), DataFrame),
+            name
+        )
+        for (name, file) in files_to_load
+    ]...)
 
     max_year = maximum(out.year)
     for new_year in filter(y -> y > max_year, years)
@@ -146,8 +152,6 @@ function load_medicare_data_api(
     
         out = vcat(out, X)
     end
-
-
 
     acs_medicare = load_acs_medicare_data(census_api_key; years=years, state_fips=state_fips)
 

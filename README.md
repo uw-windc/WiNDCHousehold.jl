@@ -101,6 +101,10 @@ data:
     api: true
     min_year: 2009
     max_year: 2024
+    url: 'https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip'
+    files:
+      medicare: "MEDICARE_AGGREGATE20.CSV"
+      medicaid: "MEDICAID_AGGREGATE20.CSV"
   capital_tax_rates:
     api: false
     path: 'path/to/capital_tax_rates.csv'
