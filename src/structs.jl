@@ -64,24 +64,25 @@ struct RawHouseholdData
     state_fips::DataFrame
     income_categories::DataFrame
     state_abbreviations::DataFrame
-    income::DataFrame
-    numhh::DataFrame
-    nipa::DataFrame
-    acs_commute::DataFrame
-    medicare::DataFrame
-    labor_tax_rates::DataFrame
-    capital_tax_rates::DataFrame
+    income::DataFrame                           # cps[:income]
+    numhh::DataFrame                            # cps[:numhh]
+    nipa::DataFrame                             # nipa
+    acs_commute::DataFrame                      # acs
+    medicare::DataFrame                         # medicare
+    labor_tax_rates::DataFrame                  # labor_tax_rates
+    capital_tax_rates::DataFrame                # capital_tax_rates
 
-    nipa_cps::DataFrame
-    windc_vs_nipa_income_categories::DataFrame
-    nipa_fringe::DataFrame
-    cps_data::DataFrame
-    cex_income_elasticities::DataFrame
-    pce_shares::DataFrame
+    nipa_cps::DataFrame                         # cps_vs_nipa_income_categories(cps[:income], nipa)
+    windc_vs_nipa_income_categories::DataFrame  # windc_vs_nipa_income_categories(state_table, nipa)
+    nipa_fringe::DataFrame                      # nipa_fringe_benefit_markup(nipa)
+    cps_data::DataFrame                         # Combines income and labor_tax_rates. Needs to be function
+    cex_income_elasticities::DataFrame          # cex_income_elasticities
+    pce_shares::DataFrame                       # pce_shares
 
     function RawHouseholdData(
         state_table::WiNDCRegional.State,
-        cps::Dict{Symbol,DataFrame},
+        income::DataFrame,
+        numhh::DataFrame,
         nipa::DataFrame,
         acs::DataFrame,
         medicare::DataFrame,
@@ -93,11 +94,11 @@ struct RawHouseholdData
         income_categories = WiNDCHousehold.load_cps_income_categories(),
         state_abbreviations = WiNDCHousehold.load_state_fips(cols_to_keep = [:state, :abbreviation]),
     )
-        nipa_cps = WiNDCHousehold.cps_vs_nipa_income_categories(cps[:income], nipa)
+        nipa_cps = WiNDCHousehold.cps_vs_nipa_income_categories(income, nipa)
         windc_vs_nipa_income_categories = WiNDCHousehold.windc_vs_nipa_income_categories(state_table, nipa)
         nipa_fringe = WiNDCHousehold.nipa_fringe_benefit_markup(nipa)
 
-        cps_data = cps[:income] |>
+        cps_data = income |>
             x -> innerjoin(x, income_categories, on = :source) |>
             x -> groupby(x, [:hh, :year, :state, :windc]) |>
             x -> combine(x, :value => sum => :value) |>
@@ -133,8 +134,8 @@ struct RawHouseholdData
             state_fips,
             income_categories,
             state_abbreviations,
-            cps[:income],
-            cps[:numhh],
+            income,
+            numhh,
             nipa,
             acs,
             medicare,
