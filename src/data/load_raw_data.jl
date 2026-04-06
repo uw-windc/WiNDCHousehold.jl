@@ -85,7 +85,14 @@ function household_raw_data(info::Dict)
 
     medicare_min_year = info["data"]["medicare"]["min_year"]
     medicare_max_year = info["data"]["medicare"]["max_year"]
-    medicare = WiNDCHousehold.load_medicare_data_api(census_api_key; years=medicare_min_year:medicare_max_year)
+    medicare_url = info["data"]["medicare"]["url"]
+    medicare_files = info["data"]["medicare"]["files"]
+    medicare = WiNDCHousehold.load_medicare_data_api(
+            census_api_key; 
+            url=medicare_url,
+            years=medicare_min_year:medicare_max_year,
+            files_to_load = medicare_files,
+            )
 
     labor_path = info["data"]["labor_tax_rates"]["path"]
     labor_tax_rates = WiNDCHousehold.load_labor_tax_rates(labor_path)
