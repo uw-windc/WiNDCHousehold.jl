@@ -1,12 +1,13 @@
 """
-    load_acs_data_api(year::Int, census_api_key; output_path::String = tempname())
+    load_acs_data_api(year::Int, cps_income::DataFrame, cps_numhh::DataFrame; output_path::String = tempname())
 
 Pull the raw ACS commuting flow data directly from the Census website for a given year.
 
 ## Arguments
 
 - `year::Int`: The year of the ACS data to load.
-- `census_api_key::String`: The Census API key.
+- `cps_income::DataFrame`: The CPS income data.
+- `cps_numhh::DataFrame`: The CPS household number data.
 
 ## Optional Arguments
 
@@ -26,8 +27,11 @@ https://www2.census.gov/programs-surveys/demo/tables/metro-micro/{year}/commutin
 ```
 """
 function load_acs_data_api(
-    info::Dict;
+    info::Dict,
+    cps_income::DataFrame,
+    cps_numhh::DataFrame;
     output_path::String = tempname(),
+    
 )
 
     acs_info = info["data"]["acs"]
@@ -47,13 +51,13 @@ function load_acs_data_api(
 
     file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
 
-    cps_data = Dict()
-    cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
+    #cps_data = Dict()
+    #cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
 
     income_2020 = leftjoin(
-        cps_income(cps_data) |>
+        cps_income |>
             x -> subset(x, :source => ByRow(==("hwsval"))),
-        cps_numhh(cps_data),
+        cps_numhh,
         on = [:year, :state, :hh]
     ) |>
     dropmissing |>
