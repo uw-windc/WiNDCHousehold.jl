@@ -276,7 +276,6 @@ function cps_income(cps_raw_data::Vector{DataFrame})
 
     df = cps_raw_data |>
         x -> stack.(x, Ref(Not(:hh, :year, :state, :marsupwt)), variable_name = :source, value_name = :value) |>
-    
         x -> vcat(x...) |>
         x -> transform(x, 
             [:marsupwt, :value] => ByRow(*) => :value
