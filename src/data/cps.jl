@@ -206,8 +206,7 @@ function clean_cps_data(cps_raw_data::DataFrame, state_fips::DataFrame; bounds =
             :htotval =>  ByRow(y -> household_labels(y; bounds = bounds)) => :hh,
         ) |>
         x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
-        x -> select(x, Not(:gestfips)) |>
-        x -> stack(x, Not(:hh, :year, :state, :marsupwt), variable_name = :source, value_name = :value)
+        x -> select(x, Not(:gestfips)) 
 
     return cps_data
 end
@@ -275,7 +274,10 @@ Compute total CPS income by household type, state, year, and source variable.
 """
 function cps_income(cps_raw_data::Vector{DataFrame})
 
-    df = vcat(cps_raw_data...) |>
+    df = cps_raw_data |>
+        x -> stack.(x, Ref(Not(:hh, :year, :state, :marsupwt)), variable_name = :source, value_name = :value) |>
+    
+        x -> vcat(x...) |>
         x -> transform(x, 
             [:marsupwt, :value] => ByRow(*) => :value
         ) |>
