@@ -41,12 +41,12 @@ function load_cps_data(info::Dict, years::Vector{Int}; state_fips = WiNDCHouseho
 
     cps_data = clean_cps_data.(cps_raw_data, Ref(state_fips); bounds = bounds)
 
-    return cps_data
+    #return cps_data
 
     #input_data = retrieve_cps_data(info, years; state_fips = state_fips)
 
-    #income = cps_income(input_data)
-    #numhh = cps_numhh(input_data)
+    income = cps_income(cps_data)
+    numhh = cps_numhh(cps_data)
 
 
     return (income = income, numhh = numhh)
@@ -207,7 +207,7 @@ function clean_cps_data(cps_raw_data::DataFrame, state_fips::DataFrame; bounds =
         ) |>
         x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
         x -> select(x, Not(:gestfips)) |>
-        x -> stack(x, Not(:hh, :year,
+        x -> stack(x, Not(:hh, :year, :state, :marsupwt), variable_name = :source, value_name = :value)
 
     return cps_data
 end
@@ -275,8 +275,7 @@ Compute total CPS income by household type, state, year, and source variable.
 """
 function cps_income(cps_raw_data::Vector{DataFrame})
 
-    df = stack.(cps_raw_data, Ref(Not(:hh, :year, :state, :marsupwt)), variable_name = :source, value_name = :value) |>
-        x -> vcat(x...) |>
+    df = vcat(cps_raw_data...) |>
         x -> transform(x, 
             [:marsupwt, :value] => ByRow(*) => :value
         ) |>
