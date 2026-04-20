@@ -52,8 +52,6 @@ retrieved according to the `cps` configuration in the YAML file.
 """
 function load_acs_data_api(
     info::Dict,
-    cps_income::DataFrame,
-    cps_numhh::DataFrame;
     output_path::String = tempname()   
 )
     output_path = isabspath(output_path) ? output_path : joinpath(pwd(), output_path)
