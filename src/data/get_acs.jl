@@ -30,14 +30,15 @@ function load_acs_data_api(
     info::Dict,
     cps_income::DataFrame,
     cps_numhh::DataFrame;
-    output_path::String = tempname(),
+    output_path::String = tempname()
     
 )
 
     acs_info = info["data"]["acs"]
 
-    year = 2020 # Currently hard coded, need to update to be dynamic
-    #year = get(acs_info, "years", [2020])
+    
+    years = get(acs_info, "years", [2020])
+
 
 
 
@@ -50,6 +51,9 @@ function load_acs_data_api(
     url = "https://www2.census.gov/programs-surveys/demo/tables/metro-micro/$year/commuting-flows-$year/table1.xlsx"
 
     file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
+
+
+    
 
     #cps_data = Dict()
     #cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)

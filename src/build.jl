@@ -170,7 +170,7 @@ function build_household_table(
     HH = initialize_table(state_table, raw_data)
     HH = adjust_capital_demand(HH, state_table, raw_data)
 
-    return HH
+    #return HH
 
     M1 = calibration_model_1(HH, state_table, raw_data)
     M2 = calibration_model_2(HH, state_table, raw_data, M1)
