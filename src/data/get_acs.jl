@@ -39,6 +39,7 @@ function load_acs_data_api(
     
     years = get(acs_info, "years", [2020])
 
+    year = 2020
 
 
 
@@ -53,15 +54,15 @@ function load_acs_data_api(
     file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
 
 
-    
+    income, numhh = load_cps_data(info, [2020])    
 
     #cps_data = Dict()
     #cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
 
     income_2020 = leftjoin(
-        cps_income |>
+        income |>
             x -> subset(x, :source => ByRow(==("hwsval"))),
-        cps_numhh,
+        numhh,
         on = [:year, :state, :hh]
     ) |>
     dropmissing |>
