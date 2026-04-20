@@ -1,12 +1,13 @@
 """
-    load_acs_data_api(year::Int, census_api_key; output_path::String = tempname())
+    load_acs_data_api(year::Int, cps_income::DataFrame, cps_numhh::DataFrame; output_path::String = tempname())
 
 Pull the raw ACS commuting flow data directly from the Census website for a given year.
 
 ## Arguments
 
 - `year::Int`: The year of the ACS data to load.
-- `census_api_key::String`: The Census API key.
+- `cps_income::DataFrame`: The CPS income data.
+- `cps_numhh::DataFrame`: The CPS household number data.
 
 ## Optional Arguments
 
@@ -26,14 +27,19 @@ https://www2.census.gov/programs-surveys/demo/tables/metro-micro/{year}/commutin
 ```
 """
 function load_acs_data_api(
-    info::Dict;
-    output_path::String = tempname(),
+    info::Dict,
+    cps_income::DataFrame,
+    cps_numhh::DataFrame;
+    output_path::String = tempname()
+    
 )
 
     acs_info = info["data"]["acs"]
 
-    year = 2020 # Currently hard coded, need to update to be dynamic
-    #year = get(acs_info, "years", [2020])
+    
+    years = get(acs_info, "years", [2020])
+
+    year = 2020
 
 
 
@@ -47,13 +53,16 @@ function load_acs_data_api(
 
     file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
 
-    cps_data = Dict()
-    cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
+
+    income, numhh = load_cps_data(info, [2020])    
+
+    #cps_data = Dict()
+    #cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
 
     income_2020 = leftjoin(
-        cps_income(cps_data) |>
+        income |>
             x -> subset(x, :source => ByRow(==("hwsval"))),
-        cps_numhh(cps_data),
+        numhh,
         on = [:year, :state, :hh]
     ) |>
     dropmissing |>

@@ -65,7 +65,7 @@ to `personal_consumption`.
     - Description: "Household Categories"
     - Elements: `hh1`, `hh2`, `hh3`, `hh4`, `hh5`
 """
-function initialize_table(state_table::State)
+function initialize_table(state_table::State, raw_data::RawHouseholdData)
 
     parameters_to_keep = [
         #:Capital_Demand
@@ -124,7 +124,9 @@ function initialize_table(state_table::State)
             ])
         )
     E = elements(state_table, sets_to_keep..., parameters_to_keep...) |>
-        x -> subset(x, :name => ByRow(!=(:personal_consumption))) |>
+        x -> subset(x, 
+            :name => ByRow(!=(:personal_consumption))
+        ) |>
         x -> vcat(x,
             DataFrame([
                 (name = :hh1, description = "Household Category 1", set = :household),
@@ -165,12 +167,15 @@ function build_household_table(
         raw_data::RawHouseholdData;
     )
 
-    HH = initialize_table(state_table)
+    HH = initialize_table(state_table, raw_data)
     HH = adjust_capital_demand(HH, state_table, raw_data)
-    #HH = build_transfer_payments(HH, state_table, raw_data)
+
+    #return HH
 
     M1 = calibration_model_1(HH, state_table, raw_data)
     M2 = calibration_model_2(HH, state_table, raw_data, M1)
+
+
 
     HH = WiNDCHousehold.create_personal_consumption(HH, state_table, raw_data, M2)
     HH = WiNDCHousehold.create_labor_endowment(HH, state_table, raw_data, M1)

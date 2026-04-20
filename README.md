@@ -45,12 +45,8 @@ data:
   state_table:
     path: "state_data_2024.jld2"
   cps:
-    api: false
+    api: true
     path: 'path/to/cps_directory'
-    years:
-      - 2024
-      #- 2023
-      #- 2005
     cps_identifiers:
       - gestfips  # state fips
       - a_exprrp  # expanded relationship code

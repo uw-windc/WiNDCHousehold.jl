@@ -1,25 +1,3 @@
-function my_parse(val)
-    if contains(val,'.')
-        return parse.(Float64,val)
-    end
-    return parse.(Int,val)
-end
-
-"""
-    get_cps_data_api(year, vars, api_key)
-
-Pull the raw data directly from the API
-"""
-function get_cps_data_api(year, vars, api_key)
-
-    url = "https://api.census.gov/data/$year/cps/asec/mar?get=$vars&for=state:*&key=$(api_key)"
-
-    response = HTTP.get(url);
-    response_text = String(response.body)
-    data = JSON.parse(response_text);
-
-    return (data[1],[Tuple(my_parse.(row)) for row in data[2:end]])
-end
 
 """
     load_cps_data(cps_info::Dict; state_fips = WiNDCHousehold.load_state_fips())
@@ -43,7 +21,7 @@ A NamedTuple with the following DataFrames:
 - `income::DataFrame`: Output from 
 - `numhh::DataFrame`: A DataFrame containing the number of households by household type
 """
-function load_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips())
+function load_cps_data(info::Dict, years::Vector{Int}; state_fips = WiNDCHousehold.load_state_fips())
 
     cps_info = info["data"]["cps"]
     cps_info["census_api_key"] = get(info["metadata"],"census_api_key",nothing)
@@ -51,166 +29,186 @@ function load_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips()
 
     api = get(cps_info, "api", false)
     path = get(cps_info, "path", nothing)
-    years = get(cps_info, "years", [2024])
 
-    input_data = retrieve_cps_data(info; state_fips = state_fips)
+    api || !isnothing(path) || error("Either API access or a local path must be provided for CPS data.")
 
-    income = cps_income(input_data)
-    numhh = cps_numhh(input_data)
+
+    if api
+        cps_raw_data = api_load_cps_data(cps_info, years)
+    else
+        cps_raw_data = local_load_cps_data(path, years)
+    end
+
+    cps_data = clean_cps_data.(cps_raw_data, Ref(state_fips); bounds = bounds)
+
+    #return cps_data
+
+    #input_data = retrieve_cps_data(info, years; state_fips = state_fips)
+
+    income = cps_income(cps_data)
+    numhh = cps_numhh(cps_data)
 
 
     return (income = income, numhh = numhh)
 end
 
+# =================
+# API Loading
+# =================
+
+function my_parse(val)
+    if contains(val,'.')
+        return parse.(Float64,val)
+    end
+    return parse.(Int,val)
+end
+
 """
-    get_cps_data(
-        year, 
-        cps_rw, 
-        variables, 
-        api_key; bounds = Dict("hh1" => 25000, "hh2" => 50000, "hh3" => 75000, "hh4" => 150000)
-        )
+    get_cps_data_api(year, vars, api_key; filters = Dict())
 
-Retrieve and process CPS data for a specific year. 
-
-## Arguments
-
-- `year::Int`: The year of the CPS data to load.
-- `cps_rw::Vector{String}`: The list of CPS raw variables to load. This must contain:
-    - `gestfips`: State FIPS code.
-    - `a_exprrp`: Expanded relationship code.
-    - `h_hhtype`: Type of household interview.
-    - `pppos`: Person identifier.
-    - `marsupwt`: ASEC supplement final weight.
-- `variables::Vector{String}`: The list of CPS variables to process. This must contain:
-    - `htotval`: Total household income.
-- `api_key::String`: The Census API key. 
-
-## Optional Arguments
-
-- `bounds::Dict{String, Int}`: A dictionary defining income bounds for household labels. Defaults to:
-    - `hh1`: 25000
-    - `hh2`: 50000
-    - `hh3`: 75000
-    - `hh4`: 150000
-
-These bound can be adjusted in the `household.yaml` file. See 
-[`WiNDCHousehold.load_household_yaml`](@ref) for more details.
-
-## Returns
-
-- `DataFrame`: A DataFrame containing the columns:
-    - `gestfips::Int`: State FIPS code.
-    - `year::Int`: The year of the data.
-    - `hh::String`: Household income category.
-    - `marsupwt::Float64`: ASEC supplement final weight.
-    - `source::String`: The source variable name.
-    - `value::Float64`: The value of the source variable.
-
-## Process
-
-1. Download CPS data from the Census API using [`WiNDCHousehold.get_cps_data_api`](@ref).
-2. Filter the data to include:
-    - Only households with representative persons (`a_exprrp` in [1,2]).
-    - Only household interviews (`h_hhtype` == 1).
-    - Only person identifier 41 (`pppos` == 41).
-3. Select relevant columns and stack the `variables` column into `source` and `value`
+Pull the raw data directly from the API. Return a DataFrame.
+The columns of the dataframe are determined by the `vars` argument, which is a vector 
+of variable names to retrieve from the API. Also adds a `year` column to the resulting DataFrame.
 """
-function get_cps_data(year, cps_rw, variables, api_key; bounds = Dict("hh1" => 25000, "hh2" => 50000, "hh3" => 75000, "hh4" => 150000))
+function get_cps_data_api(year::Int, variables::Vector{String}, api_key::String; filters = Dict())
 
-    vars = join(vcat(cps_rw,variables), ',')
+    vars = join(uppercase.(variables), ',')
 
-    given_vars,d = WiNDCHousehold.get_cps_data_api(year, vars, api_key)
+    # CPS ASEC data lags by one year, so need to add 1 to the year when querying the API
+    url = "https://api.census.gov/data/$(year+1)/cps/asec/mar?get=$vars&for=state:*&key=$(api_key)"
 
+    for (variable, value) in filters
+        var = uppercase(variable)
+        val = join(value, ",")
+        url *= "&$var=$val"
+    end
 
-    vars = Symbol.(lowercase.(given_vars))
-    modify_vars = Symbol.(lowercase.(variables))
+    response = HTTP.get(url);
+    response_text = String(response.body)
+    data = JSON.parse(response_text);
 
-    df = DataFrame(d, vars) |>
-        x -> subset(x,
-            :a_exprrp => ByRow(y -> y in [1,2]), # extract the household file with representative persons
-            :h_hhtype => ByRow(y -> y == 1), # extract the household file with representative persons
-            :pppos => ByRow(y -> y == 41)
-        ) |>
-        x -> select(x, Not(:state, :a_exprrp, :h_hhtype, :pppos))
-
+    df = DataFrame([Tuple(my_parse.(row)) for row in data[2:end]], Symbol.(lowercase.(data[1]))) 
+    df[!, :year] .= year
     return df
 end
 
 """
-    retrieve_cps_data(year::Int, info::Dict; state_fips = WiNDCHousehold.load_state_fips()))
-    retrieve_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips()))
+    api_load_cps_data(cps_info::Dict, years::Vector{Int})
 
-Retrieve CPS data from the Census API based on the provided configuration. The data 
-is retrieved using [`WiNDCHousehold.get_cps_data`](@ref) for each specified year and combined into a single DataFrame.
-
+Load CPS data for the specified years using the Census API. This function iterates 
+over the specified years, retrieves the data for each year using `get_cps_data_api`, 
+and combines the results into a single vector of DataFrames.
 ## Arguments
 
-- `year::Int`: The year of the CPS data to retrieve. If missing, all years specified in `cps_info` are retrieved.
-- `info::Dict`: The household configuration dictionary, obtained from 
-[`WiNDCHousehold.load_household_yaml`](@ref).
-
-The `cps_info` dictionary is build by [`WiNDCHousehold.load_household_yaml`](@ref).
+- `cps_info::Dict`: The CPS configuration dictionary, which should include:
+    - `census
+    - api_key::String`: The Census API key.
+    - `cps_identifiers::Vector{String}`: A vector of CPS identifier variables
+    - `cps_variables::Vector{String}`: A vector of CPS variables to retrieve.
+    - `cps_pre2019_variables::Vector{String}`: A vector of CPS
+        variables to retrieve for years before 2019.
+    - `cps_post2019_variables::Vector{String}`: A vector of CPS
+        variables to retrieve for years 2019 and later.
+    - `income_bounds::Dict{String, Int}`: A dictionary defining income bounds for
+        household labels. Defaults to:
+        - `hh1`: 25000
+        - `hh2`: 50000
+        - `hh3`: 75000
+        - `hh4`: 150000
 
 ## Returns
 
-If `year` is provided, returns a single DataFrame for that year.
-
-If `year` is not provided, returns a dictionary mapping each year to its 
-corresponding CPS DataFrame. Each DataFrame contains the columns given by the input variables.
+A vector of DataFrames, where each DataFrame contains the CPS data for a specific 
+year, with columns corresponding to the requested variables and additional columns 
+for `year`.
 """
-function retrieve_cps_data(year::Int, info::Dict; state_fips = WiNDCHousehold.load_state_fips())
-    save_data = get(info["metadata"], "save_data", true)
+function api_load_cps_data(cps_info::Dict, years::Vector{Int})
+    api_key = cps_info["census_api_key"]
 
-    cps_info = info["data"]["cps"]
-    api_key = get(info["metadata"],"census_api_key","nothing")
-    bounds = cps_info["income_bounds"]
-
-    api = get(cps_info, "api", false)
-    path = get(cps_info, "path", nothing)
-
-    cps_rw = uppercase.(get(cps_info, "cps_identifiers", []))
-    cps_vars = uppercase.(get(cps_info, "cps_variables", []))
-    cps_pre2019 =  uppercase.(get(cps_info, "cps_pre2019_variables", []))
-    cps_post2019 = uppercase.(get(cps_info, "cps_post2019_variables", []))
+    cps_id = lowercase.(get(cps_info, "cps_identifiers", []))
+    cps_filters = get(cps_info, "cps_filters", Dict())
+    cps_vars = lowercase.(get(cps_info, "cps_variables", []))
+    cps_pre2019 =  lowercase.(get(cps_info, "cps_pre2019_variables", []))
+    cps_post2019 = lowercase.(get(cps_info, "cps_post2019_variables", []))
     bounds = get(cps_info, "income_bounds", Dict("hh1" => 25000, "hh2" => 50000, "hh3" => 75000, "hh4" => 150000))
 
-    variables = year + 1 < 2019 ? vcat(cps_vars, cps_pre2019) : vcat(cps_vars, cps_post2019)
-    
-    out = DataFrame()
-    if !isnothing(path)
-        file_path = joinpath(path, "cps_$(year).csv")
-        if isfile(file_path)
-            out = CSV.read(file_path, DataFrame)
-        else
-            out = get_cps_data(year + 1, cps_rw, variables, api_key; bounds = bounds)
-            if save_data
-                mkpath(path)
-                CSV.write(joinpath(path, "cps_$(year).csv"), out)
-            end
-        end
+    out = []
+
+    for year in years
+        variables = year + 1 < 2019 ? vcat(cps_id, cps_vars, cps_pre2019) : vcat(cps_id,cps_vars, cps_post2019)
+
+        df = get_cps_data_api(year, variables, api_key; filters = cps_filters) |>
+            x -> select(x, variables, :year) 
+
+        out = push!(out, df)
     end
-
-    out = out |>
-        x -> transform(x, 
-            :htotval =>  ByRow(y -> household_labels(y; bounds = bounds)) => :hh,
-            :gestfips => ByRow(y -> year) => :year,
-        ) |>
-        x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
-        x -> select(x, Not(:gestfips))
-
+    
     return out
 end
 
 
-function retrieve_cps_data(info::Dict; state_fips = WiNDCHousehold.load_state_fips())
-    cps_info = info["data"]["cps"]
-    years = get(cps_info, "years", [2024])
-    
-    out = Dict()
+# ===================
+# Local Loading
+# ===================
+
+"""
+    local_load_cps_data(path::String, years::Vector{Int})
+
+Load CPS data from local CSV files. The function expects a JSON file named 
+`cps.json` in the specified path, which should contain a mapping of years to 
+their corresponding CSV file names. The function reads the CSV files for the 
+specified years and combines them into a single vector of DataFrames.
+
+## Arguments
+
+- `path::String`: The path to the directory containing the CPS data files. The directory must contain a `cps.json` file that maps years to CSV file names.
+- `years::Vector{Int}`: A vector of years for which to load the CPS data.
+
+## Returns
+
+A vector of DataFrames, where each DataFrame contains the CPS data for a specific year, with columns corresponding to the variables in the CSV files and an additional `year` column.
+"""
+function local_load_cps_data(path::String, years::Vector{Int})
+
+    isfile(joinpath(path, "cps.json")) || error(
+        "CPS JSON information file not found at $(joinpath(path, "cps.json")). " *
+        "Please ensure the file exists and the path is correct. Alternatively, set" *
+        "`api=true` in the household configuration to load data directly from the Census API.")
+
+    cps_json = JSON.parsefile(joinpath(path, "cps.json"))
+
+    out = []
     for year in years
-        out[year] = retrieve_cps_data(year, info; state_fips = state_fips)
+        file = get(cps_json, string(year), nothing)
+        if isnothing(file)
+            @warn "CPS data file for year $year not found in JSON. Skipping this year."
+            continue
+        end
+        df = CSV.read(joinpath(path, file), DataFrame) |>
+            x -> subset(x, :year => ByRow(y -> y in years))
+        push!(out, df)
     end
+
     return out
+
+end
+
+
+
+# ===================
+# Data Cleaning
+# ===================
+
+function clean_cps_data(cps_raw_data::DataFrame, state_fips::DataFrame; bounds = Dict("hh1" => 25000, "hh2" => 50000, "hh3" => 75000, "hh4" => 150000))
+
+    cps_data = cps_raw_data |>
+        x -> transform(x, 
+            :htotval =>  ByRow(y -> household_labels(y; bounds = bounds)) => :hh,
+        ) |>
+        x -> leftjoin(x, state_fips, on = :gestfips => :fips) |>
+        x -> select(x, Not(:gestfips)) 
+
+    return cps_data
 end
 
 
@@ -250,15 +248,19 @@ function household_labels(amount::Real; bounds::Dict = Dict("hh1" => 25000, "hh2
 end
 
 
+# ===================
+# Output Functions
+# ===================
+
+
 """
-    cps_income(cps_raw_data::Dict)
-    cps_income(cps_raw_data::Dict)
+    cps_income(cps_raw_data::Vector{DataFrame})
 
 Compute total CPS income by household type, state, year, and source variable.
 
 ## Arguments
 
-- `cps_raw_data::Dict`: Output from [`retrieve_cps_data`](@ref).
+- `cps_raw_data::Vector{DataFrame}`: A vector of DataFrames containing the raw CPS data.
 
 ## Returns
 
@@ -270,30 +272,31 @@ Compute total CPS income by household type, state, year, and source variable.
     - `value::Float64`: The total income value in billions of dollars.
 
 """
-function cps_income(cps_raw_data::Dict)
-    return cps_raw_data |>
-        data -> vcat([stack(df, Not(:hh, :year, :state, :marsupwt), variable_name = :source, value_name = :value) for (year, df) in data]...) |>
-        x -> cps_income(x)
-end
+function cps_income(cps_raw_data::Vector{DataFrame})
 
-function cps_income(cps_raw_data::DataFrame)
-    return cps_raw_data |>
+    df = cps_raw_data |>
+        x -> stack.(x, Ref(Not(:hh, :year, :state, :marsupwt)), variable_name = :source, value_name = :value) |>
+        x -> vcat(x...) |>
         x -> transform(x, 
             [:marsupwt, :value] => ByRow(*) => :value
         ) |>
         x -> groupby(x, [:hh, :state, :year, :source]) |>
         x -> combine(x, :value => (y -> sum(y)/1e9) => :value)
+
+    return df
+
+
 end
 
+
 """
-    cps_numhh(cps_raw_data::Dict)
-    cps_numhh(cps_raw_data::DataFrame)
+    cps_numhh(cps_raw_data::Vector{DataFrame})
 
 Compute the number of households (in millions) by household type, state, and year from CPS raw data.
 
 ## Arguments
 
-- `cps_raw_data::Dict`: Output from [`retrieve_cps_data`](@ref).
+- `cps_raw_data::Vector{DataFrame}`: A vector of DataFrames containing the raw CPS data.
 
 ## Returns
 
@@ -303,11 +306,14 @@ Compute the number of households (in millions) by household type, state, and yea
     - `year::Int`: The year of the data.
     - `numhh::Float64`: The number of households in millions.
 """
-function cps_numhh(cps_raw_data::Dict)
+function cps_numhh(cps_raw_data::Vector{DataFrame})
     return cps_raw_data |>
-        data -> vcat([select(df, :hh, :year, :state, :marsupwt) for (year, df) in data]...) |>
-        x -> cps_numhh(x)
+        x -> select.(x, :hh, :year, :state, :marsupwt) |>
+        x -> vcat(x...) |>
+        x -> groupby(x, [:hh, :state, :year]) |>
+        x -> combine(x, :marsupwt => (y -> sum(y)*1e-6) => :numhh)
 end
+   
 
 function cps_numhh(cps_raw_data::DataFrame)
     return cps_raw_data |>
