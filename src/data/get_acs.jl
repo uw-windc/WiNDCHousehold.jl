@@ -40,59 +40,60 @@ function load_acs_data_api(
     acs_info = info["data"]["acs"]
 
     years = get(acs_info, "years", [2020])
-    year = 2020
 
-    file_path = download_acs_data(year, output_path)
+    out = DataFrame()
 
-    column_names = [
-        "home_fips",
-        "home_cntyfips",
-        "home_state",
-        "home_county",
-        "work_fips",
-        "work_cntyfips",
-        "work_state",
-        "work_county",
-        "workers",
-        "error"
-    ]
+    for year in years
 
-    #X = XLSX.readdata(file_path, "Table 1", "A9:J122343")
-    X = XLSX.readtable(
-        file_path, 
-        "Table 1", 
-        "A:J"; 
-        first_row = 9,
-        column_labels = column_names,
-        stop_in_row_function = x -> ismissing(x[:home_cntyfips])
-        )
+        file_path = download_acs_data(year, output_path)
 
+        column_names = [
+            "home_fips",
+            "home_cntyfips",
+            "home_state",
+            "home_county",
+            "work_fips",
+            "work_cntyfips",
+            "work_state",
+            "work_county",
+            "workers",
+            "error"
+        ]
 
-
-
-
-    wages = get_cps_wages(info, year)
+        X = XLSX.readtable(
+            file_path, 
+            "Table 1", 
+            "A:J"; 
+            first_row = 9,
+            column_labels = column_names,
+            stop_in_row_function = x -> ismissing(x[:home_cntyfips])
+            )
 
 
-    df = DataFrame(X, column_names) |>
-        x -> groupby(x, [:home_state, :work_state]) |>
-        x -> combine(x, :workers => sum => :value) |>
-        x -> innerjoin(
-            x,
-            wages,
-            on = :home_state => :state
-        ) |>
-        x -> transform(x,
-            [:value, :wages] => ByRow(*) => :value
-        ) |>
-        x -> select(x, [:home_state, :work_state, :value]) |>
-        x -> subset(x,
-            [:home_state, :work_state] => ByRow((hs, ws) -> hs!=ws),
-            :value => ByRow(>(1))
-        )
+        wages = get_cps_wages(info, year)
 
+        df = DataFrame(X, column_names) |>
+            x -> groupby(x, [:home_state, :work_state]) |>
+            x -> combine(x, :workers => sum => :value) |>
+            x -> innerjoin(
+                x,
+                wages,
+                on = :home_state => :state
+            ) |>
+            x -> transform(x,
+                [:value, :wages] => ByRow(*) => :value,
+                :wages => y -> 2020 => :year
+            ) |>
+            x -> select(x, [:home_state, :work_state, :year, :value]) |>
+            x -> subset(x,
+                [:home_state, :work_state] => ByRow((hs, ws) -> hs!=ws),
+                :value => ByRow(>(1))
+            )
 
-    return df
+        out = vcat(out, df)
+    end
+
+    return out
 
 end
 
