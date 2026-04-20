@@ -25,6 +25,30 @@ The ACS commuting flow data is downloaded from the Census website:
 ```
 https://www2.census.gov/programs-surveys/demo/tables/metro-micro/{year}/commuting-flows-{year}/table1.xlsx
 ```
+
+## YAML Configuration
+
+To use the API configuration for loading ACS data, include the following in your `household.yaml`:
+
+```yaml
+api: true
+years: 
+    - 2020
+```
+
+To load the data locally, provide the file paths in the `paths` dictionary:
+```yaml
+api: false
+years:
+    - 2020
+paths:
+    2020: 'path/to/acs_data.xlsx'
+```
+
+The ACS data is only available for specific years, so ensure that the years you 
+specify are valid for the dataset. This data also depends on the CPS data for the 
+same year to enrich the commuting flow data with income information. This will be
+retrieved according to the `cps` configuration in the YAML file.
 """
 function load_acs_data_api(
     info::Dict,
@@ -38,6 +62,8 @@ function load_acs_data_api(
     end
 
     acs_info = info["data"]["acs"]
+    api = get(acs_info, "api", true)
+    local_paths = get(acs_info, "paths", Dict{Int,String}())
 
     years = get(acs_info, "years", [2020])
 
@@ -45,7 +71,9 @@ function load_acs_data_api(
 
     for year in years
 
-        file_path = download_acs_data(year, output_path)
+        file_path = api ? download_acs_data(year, output_path) : get(local_paths, year, missing)
+
+        ismissing(file_path) && error("No file path provided for year $year and API access is disabled.")
 
         column_names = [
             "home_fips",
