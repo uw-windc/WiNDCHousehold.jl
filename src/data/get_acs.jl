@@ -30,48 +30,19 @@ function load_acs_data_api(
     info::Dict,
     cps_income::DataFrame,
     cps_numhh::DataFrame;
-    output_path::String = tempname()
-    
+    output_path::String = tempname()   
 )
-
-    acs_info = info["data"]["acs"]
-
-    
-    years = get(acs_info, "years", [2020])
-
-    year = 2020
-
-
-
     output_path = isabspath(output_path) ? output_path : joinpath(pwd(), output_path)
-
     if !isdir(output_path)
         mkpath(output_path)
     end
 
-    url = "https://www2.census.gov/programs-surveys/demo/tables/metro-micro/$year/commuting-flows-$year/table1.xlsx"
+    acs_info = info["data"]["acs"]
 
-    file_path = Downloads.download(url, joinpath(output_path,"acs_data.xlsx"))
+    years = get(acs_info, "years", [2020])
+    year = 2020
 
-
-    income, numhh = load_cps_data(info, [2020])    
-
-    #cps_data = Dict()
-    #cps_data[year] = WiNDCHousehold.retrieve_cps_data(year, info)
-
-    income_2020 = leftjoin(
-        income |>
-            x -> subset(x, :source => ByRow(==("hwsval"))),
-        numhh,
-        on = [:year, :state, :hh]
-    ) |>
-    dropmissing |>
-    x -> groupby(x, [:year, :state]) |>
-    x -> combine(x,
-        [:value, :numhh] => ((a,b) -> sum(a)/(sum(b)*1e6)) => :wages
-    )
-        
-    X = XLSX.readdata(file_path, "Table 1", "A9:J122343")
+    file_path = download_acs_data(year, output_path)
 
     column_names = [
         "home_fips",
@@ -86,12 +57,29 @@ function load_acs_data_api(
         "error"
     ]
 
+    #X = XLSX.readdata(file_path, "Table 1", "A9:J122343")
+    X = XLSX.readtable(
+        file_path, 
+        "Table 1", 
+        "A:J"; 
+        first_row = 9,
+        column_labels = column_names,
+        stop_in_row_function = x -> ismissing(x[:home_cntyfips])
+        )
+
+
+
+
+
+    wages = get_cps_wages(info, year)
+
+
     df = DataFrame(X, column_names) |>
         x -> groupby(x, [:home_state, :work_state]) |>
         x -> combine(x, :workers => sum => :value) |>
         x -> innerjoin(
             x,
-            income_2020,
+            wages,
             on = :home_state => :state
         ) |>
         x -> transform(x,
@@ -106,4 +94,41 @@ function load_acs_data_api(
 
     return df
 
+end
+
+"""
+    get_cps_wages(info::Dict, year::Int)
+
+Helper function to extract average wages from the CPS data for a given year. This 
+is used to enrich the ACS commuting flow data with income information.
+
+## Arguments
+
+- `info::Dict`: The dictionary containing metadata and data paths.
+- `year::Int`: The year for which to extract the average wages.
+"""
+function get_cps_wages(info::Dict, year::Int)
+    income, numhh = load_cps_data(info, [year])    
+
+    wages = leftjoin(
+        income |>
+            x -> subset(x, :source => ByRow(==("hwsval"))),
+        numhh,
+        on = [:year, :state, :hh]
+    ) |>
+    dropmissing |>
+    x -> groupby(x, [:year, :state]) |>
+    x -> combine(x,
+        [:value, :numhh] => ((a,b) -> sum(a)/(sum(b)*1e6)) => :wages
+    )
+
+    return wages
+
+end
+
+
+function download_acs_data(year::Int, output_path::String)
+    url = "https://www2.census.gov/programs-surveys/demo/tables/metro-micro/$year/commuting-flows-$year/table1.xlsx"
+    file_path = Downloads.download(url, joinpath(output_path,"acs_data_$year.xlsx"))
+    return file_path
 end
