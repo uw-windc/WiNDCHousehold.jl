@@ -92,7 +92,6 @@ data:
     api: true
     years: 
       - 2020
-    requires: cps
   medicare:
     api: true
     min_year: 2009
