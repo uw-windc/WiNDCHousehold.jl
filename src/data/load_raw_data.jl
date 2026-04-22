@@ -90,7 +90,7 @@ function household_raw_data(info::Dict)
     medicare = WiNDCHousehold.load_medicare_data_api(
             census_api_key; 
             url=medicare_url,
-            years=medicare_min_year:medicare_max_year,
+            years=intersect(years, medicare_min_year:medicare_max_year),
             files_to_load = medicare_files,
             )
 

@@ -81,7 +81,7 @@ end
         census_api_key::String;
         url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
         output_path::String = tempname(),
-        years::UnitRange{Int} = 2009:2024,
+        years::Vector{Int} = collect(2009:2024),
         state_fips::DataFrame = load_state_fips()
     )
 
@@ -96,7 +96,7 @@ Load Medicare and Medicaid data from the CMS website for the specified years.
 - `url::String`: The url of the Medicare/Medicaid data zip file. Default is the CMS website link.
 - `output_path::String`: The path to save the downloaded and extracted data. Default is
     a temporary directory.
-- `years::UnitRange{Int}`: The range of years to include in the data
+- `years::Vector{Int}`: The range of years to include in the data
     Default is 2009 to 2024.
 - `state_fips::DataFrame`: A DataFrame containing state FIPS codes. Default
     is the result of `load_state_fips()`.
@@ -117,7 +117,7 @@ function load_medicare_data_api(
     census_api_key::String;
     url::String = "https://www.cms.gov/research-statistics-data-and-systems/statistics-trends-and-reports/nationalhealthexpenddata/downloads/resident-state-estimates.zip",
     output_path::String = tempname(),
-    years::UnitRange{Int} = 2009:2024,
+    years::Vector{Int} = collect(2009:2024),
     state_fips::DataFrame = load_state_fips(),
     files_to_load = Dict(
         "medicare" => "MEDICARE_AGGREGATE20.CSV",
@@ -174,7 +174,7 @@ end
 """
     load_acs_medicare_data(
         census_api_key::String;
-        years::Vector{Int} = 2009:2024,
+        years::Vector{Int} = collect(2009:2024),
         state_fips::DataFrame = load_state_fips()
     )
 
@@ -205,7 +205,7 @@ and year.
 """
 function load_acs_medicare_data(
     census_api_key::String;
-    years::UnitRange{Int} = 2009:2024,
+    years::Vector{Int} = collect(2009:2024),
     state_fips::DataFrame = load_state_fips()
 )
     acs_medicare = DataFrame()
@@ -262,21 +262,27 @@ function load_acs_medicare_data(
                     :value => (y -> y./sum(y)) => :share
                 )
 
-    acs_2020 = acs_medicare |>
-        x -> subset(x, 
-            :year => ByRow(∈([2019, 2021]))
-        ) |>
-        x -> groupby(x, [:state, :income]) |>
-        x -> combine(x, :share => (y -> sum(y)/length(y)) => :share) |>
-        x -> transform(x, :state => ByRow(y->2020) => :year)
+    if 2020 in years
+    
+        acs_2020 = acs_medicare |>
+            x -> subset(x, 
+                :year => ByRow(∈([2019, 2021]))
+            ) |>
+            x -> groupby(x, [:state, :income]) |>
+            x -> combine(x, :share => (y -> sum(y)/length(y)) => :share) |>
+            x -> transform(x, :state => ByRow(y->2020) => :year)
+    
+        acs_medicare = vcat(acs_medicare, acs_2020)
 
-    return vcat(acs_medicare, acs_2020)
+    end
+
+    return acs_medicare
 end
 
 
 
 """
-    load_medicare_data(path::String; years::UnitRange{Int}=2009:2024)
+    load_medicare_data(path::String; years::Vector{Int}=collect(2009:2024))
 
 Load Medicare or Medicaid data from a CSV file at the given path.
 
@@ -286,9 +292,9 @@ Load Medicare or Medicaid data from a CSV file at the given path.
 
 ## Optional Arguments
 
-- `years::UnitRange{Int}`: The range of years to include in the data. Default is 2009 to 2024.
+- `years::Vector{Int}`: The vector of years to include in the data. Default is 2009 to 2024.
 """
-function load_medicare_data(path::String; years::UnitRange{Int}=2009:2024)
+function load_medicare_data(path::String; years::Vector{Int}=collect(2009:2024))
     df = CSV.read(path, DataFrame) |>
         x -> stack(x, [:medicare, :medicaid]) |>
         x -> subset(x,
