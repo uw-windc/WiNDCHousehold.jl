@@ -41,6 +41,17 @@ metadata:
   maps:
     state_map:
     windc_naics_map:
+ years:
+    - 2024
+    - 2023
+    - 2022
+    - 2021
+    - 2020
+    - 2019
+    - 2018
+    - 2017
+    - 2014
+    - 2011
 data:
   state_table:
     path: "state_data_2024.jld2"
