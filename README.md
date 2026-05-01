@@ -8,7 +8,8 @@ This package contains functions and data structures to disaggregate household-le
 
 In order to run this code you will need to download the state data:
 
-1. [The state data file](https://drive.google.com/file/d/1NTx-NTb5A635-u1OAKQc_qcsFOA7AOf3/view?usp=sharing) - Extract and note the location, you'll need to update the YAML file below.
+1. [Raw Data not readily available via API](https://drive.google.com/file/d/1Dmi_ceO0H1XoeA0kLqEip7T59x-30KWW/view?usp=sharing). Contains the `capital_tax_rates`, `labor_tax_rates`, `income_elasticities` and `windc_pce_share`.
+2. [The state data file](https://drive.google.com/file/d/1Ml9Lt0_ouWrq5HkgBCop-fG9YVvR_46e/view?usp=sharing) - Extract and note the location, you'll need to update the YAML file below.
 
 In your working directory create a file called `household.yaml` and populate it with the contents of the [Household YAML File](#household-yaml-file) section below, making sure to update the paths to point to the files you downloaded.
 
