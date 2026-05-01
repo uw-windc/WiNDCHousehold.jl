@@ -6,10 +6,9 @@ This package contains functions and data structures to disaggregate household-le
 
 ## Basic Example
 
-In order to run this code you will need to download two data files:
+In order to run this code you will need to download the state data:
 
-1. [The raw household disaggregation data](https://drive.google.com/file/d/1dYt5wIbv8SKjxKx-1Ehk9EsoNDJuR_j-/view?usp=sharing) - This needs to be extracted.
-2. [The state data file](https://drive.google.com/file/d/1VNThE8YUyMCxzJm9scNqn7iJL6MtHnZ0/view?usp=sharing)
+1. [The state data file](https://drive.google.com/file/d/1NTx-NTb5A635-u1OAKQc_qcsFOA7AOf3/view?usp=sharing) - Extract and note the location, you'll need to update the YAML file below.
 
 In your working directory create a file called `household.yaml` and populate it with the contents of the [Household YAML File](#household-yaml-file) section below, making sure to update the paths to point to the files you downloaded.
 
