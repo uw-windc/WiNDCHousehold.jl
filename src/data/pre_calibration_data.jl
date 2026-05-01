@@ -183,7 +183,7 @@ function initial_transfer_payments(
     household_transfers = cps |>
             x -> innerjoin(x, income_categories, on = :source) |>
             x -> subset(x, :windc => ByRow(==("transfer"))) |> # Only used to get the transfer categories. Could we do better?
-            x -> outerjoin(
+            x -> innerjoin(
                 x,
                 trn_weight,
                 on = [:year, :source],
@@ -195,7 +195,6 @@ function initial_transfer_payments(
             x -> vcat(
                 x, 
                 medicare |>
-                    x -> subset(x, :year => ByRow(==(2024))) |>
                     x -> rename(x, 
                         :income => :col,
                         :variable => :row,

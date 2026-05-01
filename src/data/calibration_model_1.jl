@@ -182,8 +182,6 @@ function calibration_model_1(HH::HouseholdTable, state_table::State, HH_Raw_Data
         set_start_value(Consumption[row[:state], Symbol(row[:hh])], row[:consumption])
     end
 
-
-
     fix.(Wages, 0; force=true)
     WiNDCHousehold.adjusted_wages(HH, state_table, HH_Raw_Data; tax_adjustment = false) |> df ->
     for row in eachrow(df)

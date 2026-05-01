@@ -268,6 +268,14 @@ function household_model(
         etaK::Real = 4.0,
         )
 
+    try
+        table(HH) |> x -> unique(x, :year) |> x -> x[:, :year] |> only
+    catch e
+        error("The household data table must contain a single year of data. To run "*
+            "the model for a specific year, use \n\n ```household_model(HH, year)." )
+    end
+
+
     states = elements(HH, :state) |> x -> x[!, :name]
     sectors = elements(HH, :sector) |> x -> x[!, :name]
     commodities = elements(HH, :commodity) |> x -> x[!, :name]
@@ -448,6 +456,19 @@ function household_model(
     )
 
     return M
+
+end
+
+
+function household_model(
+        HH::HouseholdTable,
+        year::Int;
+        etaK::Real = 4.0,
+        )
+
+    HH_year = HouseholdTable(table(HH, :year => year), sets(HH), elements(HH); regularity_check =false)
+
+    return household_model(HH_year; etaK = etaK)
 
 end
 

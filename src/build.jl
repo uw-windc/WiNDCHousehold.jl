@@ -170,25 +170,49 @@ function build_household_table(
     HH = initialize_table(state_table, raw_data)
     HH = adjust_capital_demand(HH, state_table, raw_data)
 
-    #return HH
+    years = elements(HH, :year) |> x -> x[!,:name] |> unique |> sort
 
-    M1 = calibration_model_1(HH, state_table, raw_data)
-    M2 = calibration_model_2(HH, state_table, raw_data, M1)
+    df = DataFrame()
+    all_sets = DataFrame()
+    all_elements = DataFrame()
 
+    for year in years
+        HH_year = HouseholdTable(table(HH, :year => year), sets(HH), elements(HH); regularity_check=false)
+        state_year = WiNDCRegional.State(table(state_table, :year => year), sets(state_table), elements(state_table); regularity_check=false)
+        raw_data_year = RawHouseholdData(
+            state_year,
+            [year],
+            raw_data.income |> x -> subset(x, :year => ByRow(==(year))),
+            raw_data.numhh |> x -> subset(x, :year => ByRow(==(year))),
+            raw_data.nipa |> x -> subset(x, :year => ByRow(==(year))),
+            raw_data.acs_commute,
+            raw_data.medicare |> x -> subset(x, :year => ByRow(==(year))),
+            raw_data.labor_tax_rates,
+            raw_data.cex_income_elasticities,
+            raw_data.pce_shares,
+            raw_data.capital_tax_rates;
+            state_fips = raw_data.state_fips,
+            income_categories = raw_data.income_categories,
+            state_abbreviations = raw_data.state_abbreviations,
+        )
 
+        M1 = calibration_model_1(HH_year, state_year, raw_data_year)
+        M2 = calibration_model_2(HH_year, state_year, raw_data_year, M1)
 
-    HH = WiNDCHousehold.create_personal_consumption(HH, state_table, raw_data, M2)
-    HH = WiNDCHousehold.create_labor_endowment(HH, state_table, raw_data, M1)
-    HH = WiNDCHousehold.create_household_interest(HH, state_table, raw_data, M1)
-    HH = WiNDCHousehold.create_household_transfers(HH, state_table, raw_data, M1)
+        HH_year = WiNDCHousehold.create_personal_consumption(HH_year, state_year, raw_data_year, M2, year)
+        HH_year = WiNDCHousehold.create_labor_endowment(HH_year, state_year, raw_data_year, M1, year)
+        HH_year = WiNDCHousehold.create_household_interest(HH_year, state_year, raw_data_year, M1, year)
+        HH_year = WiNDCHousehold.create_household_transfers(HH_year, state_year, raw_data_year, M1, year)
 
+        HH_year = WiNDCHousehold.create_taxes(HH_year, state_year, raw_data_year)
+        HH_year = WiNDCHousehold.create_savings(HH_year, state_year, raw_data_year, M1, year)
 
-    HH = WiNDCHousehold.create_taxes(HH, state_table, raw_data)
+        df = vcat(df, table(HH_year))
+        all_sets = sets(HH_year)
+        all_elements = elements(HH_year)
+    end
 
-    
-    HH = WiNDCHousehold.create_savings(HH, state_table, raw_data, M1)
-
-    return HH
+    return HouseholdTable(df, all_sets, all_elements; regularity_check=true)
 
 end
 
@@ -920,7 +944,8 @@ end
             HH::HouseholdTable,
             state_table::WiNDCRegional.State,
             raw_data::RawHouseholdData,
-            M2::JuMP.Model
+            M2::JuMP.Model,
+            year::Int
         )
 
 
@@ -929,7 +954,8 @@ function create_personal_consumption(
         HH::HouseholdTable,
         state_table::WiNDCRegional.State,
         raw_data::RawHouseholdData,
-        M2::JuMP.Model
+        M2::JuMP.Model,
+        year::Int
     )
 
     regions = elements(HH, :state) |> x -> x[:, :name]
@@ -937,7 +963,7 @@ function create_personal_consumption(
     commodities = elements(HH, :commodity) |> x -> x[:, :name]
 
     personal_consumption = DataFrame(vec([
-        (region = r, row = g, col = h, year = 2024, parameter = :personal_consumption, value = -value(M2[:CD][r, g, h]))
+        (region = r, row = g, col = h, year = year, parameter = :personal_consumption, value = -value(M2[:CD][r, g, h]))
         for r in regions, g in commodities, h in households
     ]))
 
@@ -976,14 +1002,15 @@ function create_labor_endowment(
         HH::HouseholdTable, 
         state_table::State, 
         HH_Raw_Data::RawHouseholdData, 
-        M1::JuMP.Model
+        M1::JuMP.Model,
+        year::Int   
     )
 
     regions = elements(HH, :state) |> x -> x[:, :name]
     households = elements(HH, :household) |> x -> x[:, :name]
-    
+
     labor_endowment = DataFrame(vec([
-        (region = origin, col = h, row = destination, year = 2024, parameter = :labor_endowment, value = value(M1[:Wages][origin, destination, h]))
+        (region = origin, col = h, row = destination, year = year, parameter = :labor_endowment, value = value(M1[:Wages][origin, destination, h]))
         for origin in regions, destination in regions, h in households if value(M1[:Wages][origin, destination, h]) != 0
     ]))
     
@@ -1019,14 +1046,15 @@ function create_household_interest(
         HH::HouseholdTable,
         state_table::WiNDCRegional.State,
         raw_data::RawHouseholdData,
-        M1::JuMP.Model
+        M1::JuMP.Model,
+        year::Int
     )
 
     regions = elements(HH, :state) |> x -> x[:, :name]
     households = elements(HH, :household) |> x -> x[:, :name]
 
     household_interest = DataFrame(vec([
-        (region = r, col = h, row = :interest, year = 2024, parameter = :household_interest, value = value(M1[:Interest][r, h]))
+        (region = r, col = h, row = :interest, year = year, parameter = :household_interest, value = value(M1[:Interest][r, h]))
         for r in regions, h in households if value(M1[:Interest][r, h]) != 0
     ]))
 
@@ -1059,6 +1087,8 @@ end
     create_household_transfers(
         HH::HouseholdTable,
         raw_data::RawHouseholdData,
+        M1::JuMP.Model,
+        year::Int
     )
 
 !!! note ""
@@ -1102,23 +1132,18 @@ Add transfer payments to the `HouseholdTable` `HH` based on the data in `raw_dat
 | `medicaid` |edicaid |
 | `other` | Other Income | 
 
-!!! note ""
-    The year for medicare and medicaid is fixed at 2024. Need to update for more 
-    years in the future.
+
 """
 function create_household_transfers(
         HH::HouseholdTable,
         state_table::WiNDCRegional.State,
         raw_data::RawHouseholdData,
-        M1::JuMP.Model
+        M1::JuMP.Model,
+        year::Int
     )
 
     regions = elements(HH, :state) |> x -> x[:, :name]
     households = elements(HH, :household) |> x -> x[:, :name]
-
-
-
-
 
     new_transfers = initial_transfer_payments(HH, state_table, raw_data) |>
         x -> groupby(x, [:region, :col, :year]) |>
@@ -1131,7 +1156,7 @@ function create_household_transfers(
         ) |>
         x -> vcat(x,
             DataFrame(vec([
-                (row = :other, region = r, col = hh, parameter = :transfer_payment, year = 2024, value = value(M1[:Other_Income][r, hh]))
+                (row = :other, region = r, col = hh, parameter = :transfer_payment, year = year, value = value(M1[:Other_Income][r, hh]))
                 for r in regions, hh in households
             ]))
         ) |>
@@ -1250,14 +1275,15 @@ function create_savings(
         HH::HouseholdTable,
         state_table::WiNDCRegional.State,
         raw_data::RawHouseholdData,
-        M1::JuMP.Model
+        M1::JuMP.Model,
+        year::Int
     )
 
     regions = elements(HH, :state) |> x -> x[:, :name]
     households = elements(HH, :household) |> x -> x[:, :name]
 
     savings = DataFrame(vec([
-        (region = r, col = h, row = :savings, year = 2024, parameter = :savings, value = value(M1[:Savings][r, h]))
+        (region = r, col = h, row = :savings, year = year, parameter = :savings, value = value(M1[:Savings][r, h]))
         for r in regions, h in households if value(M1[:Savings][r, h]) != 0
     ]))
 
